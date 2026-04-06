@@ -31,6 +31,23 @@
       },
       "registered_skills": [],
       "installed_at": "2026-04-06T23:06:02.220973+00:00"
+    },
+    "staff-review": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:320fa967c40ae943e37ceb0a1fb0f8dda42eb22b07be8428674ce72532e28e1e",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "agy": [
+          "speckit.staff-review.run"
+        ],
+        "copilot": [
+          "speckit.staff-review.run"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-06T23:19:00.071536+00:00"
     }
   }
 }
