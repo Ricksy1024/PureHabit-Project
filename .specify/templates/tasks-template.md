@@ -79,9 +79,10 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 1 (MANDATORY for sync/streak logic) ⚠️
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
+> Per Constitution V: Synchronization logic and streak calculations MUST be coverable by unit tests.
 
 - [ ] T010 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
 - [ ] T011 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py

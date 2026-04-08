@@ -1,50 +1,44 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+- Version change: 1.0.0-template → 1.0.0
+- List of modified principles:
+  - Security First: Authentication must strictly use TOTP
+  - Strict Data Protection (GDPR): Cascading "Hard Delete" required
+  - User-Centric Synchronization: "Logical OR" principle instead of "Last Write Wins"
+  - Coding Standards: Modular Node.js, async/await, Firebase best practices
+  - Testability: Isolation and unit test coverage for sync and streak logic
+- Added sections: None
+- Removed sections: Sections 2 and 3 unassigned, keeping general templates to enforce rules
+- Templates requiring updates (✅ updated / ⚠ pending):
+  ✅ .specify/templates/plan-template.md
+  ✅ .specify/templates/spec-template.md
+  ✅ .specify/templates/tasks-template.md
+- Follow-up TODOs: Implement the template updates to reflect purehabit principles
+-->
+
+# PureHabit Backend Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Security First
+Authentication must strictly use TOTP (Authenticator App) based Two-Factor Authentication (2FA). SMS-based authentication is strictly prohibited.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Strict Data Protection (GDPR)
+When a user account is deleted, a complete, irreversible, cascading "Hard Delete" must be applied to all database records and the Auth account itself. 
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. User-Centric Synchronization
+During data sync, users must never lose a recorded habit completion. In case of conflicts, the "Logical OR" principle applies instead of the traditional "Last Write Wins".
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Coding Standards
+Modular, clean Node.js code, proper handling of asynchronous operations (Promises/async-await), and strict adherence to Firebase Cloud Functions best practices.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
-
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
-
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
-
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Testability
+Synchronization logic and streak calculations must be written in an isolated manner, fully coverable by unit tests.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- All updates to the core synchronization logic or data retention models MUST be reviewed against this Constitution.
+- Amendments to this constitution must increment the version number following Semantic Versioning (MAJOR for breaking changes, MINOR for additions, PATCH for clarifications).
+- All Code Reviews MUST verify compliance with these core principles before merging.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-08

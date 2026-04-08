@@ -31,7 +31,11 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] Security First: Authentication must strictly use TOTP (Authenticator App) based Two-Factor Authentication (2FA). SMS-based authentication is strictly prohibited.
+- [ ] Strict Data Protection (GDPR): When a user account is deleted, a complete, irreversible, cascading "Hard Delete" must be applied to all database records and the Auth account itself.
+- [ ] User-Centric Synchronization: During data sync, users must never lose a recorded habit completion. In case of conflicts, the "Logical OR" principle applies instead of the traditional "Last Write Wins".
+- [ ] Coding Standards: Modular, clean Node.js code, proper handling of asynchronous operations (Promises/async-await), and strict adherence to Firebase Cloud Functions best practices.
+- [ ] Testability: Synchronization logic and streak calculations must be written in an isolated manner, fully coverable by unit tests.
 
 ## Project Structure
 

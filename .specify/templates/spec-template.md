@@ -95,6 +95,13 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Constitution Constraints *(mandatory)*
+
+- **CON-001**: System MUST implement TOTP (Authenticator App) based Two-Factor Authentication (2FA). SMS-based authentication is strictly prohibited.
+- **CON-002**: System MUST implement a "Hard Delete" on all user databases records and Auth account on user account deletion.
+- **CON-003**: System MUST NOT lose any recorded habit completion during sync (conflict resolution MUST use "Logical OR").
+- **CON-004**: System MUST have its synchronization and streak logic completely decoupled and fully covered by unit tests.
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
