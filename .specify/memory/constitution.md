@@ -1,50 +1,46 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!-- 
+Sync Impact Report:
+- Version change: 1.0.0
+- Modified principles:
+  - PRINCIPLE_1_NAME -> 1. Biztonság mindenekelőtt
+  - PRINCIPLE_2_NAME -> 2. Szigorú adatvédelem (GDPR)
+  - PRINCIPLE_3_NAME -> 3. Felhasználó-központú szinkronizáció
+  - PRINCIPLE_4_NAME -> 4. Kódolási standardok
+  - PRINCIPLE_5_NAME -> 5. Tesztelhetőség
+- Added sections: Célkitűzés
+- Removed sections: Development Workflow (unused typical Section 3)
+- Templates requiring updates (✅ updated):
+  - .specify/templates/plan-template.md ✅
+  - .specify/templates/spec-template.md ✅
+  - .specify/templates/tasks-template.md ✅
+- Follow-up TODOs: None
+-->
+
+# PureHabit Backend Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### 1. Biztonság mindenekelőtt
+A hitelesítés kizárólag TOTP (Authenticator App) alapú kétfaktoros azonosítással (2FA) történhet. Az SMS alapú hitelesítés szigorúan tilos.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### 2. Szigorú adatvédelem (GDPR)
+A felhasználók adatainak törlése esetén teljes, visszaállíthatatlan, kaszkádolt törlést (Hard Delete) kell alkalmazni minden adatbázis bejegyzésre és magára az Auth fiókra is.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### 3. Felhasználó-központú szinkronizáció
+Az adatok szinkronizálásakor a felhasználó sosem veszítheti el a rögzített szokás-teljesítését. Konfliktus esetén a "Logikai VAGY" (OR) elv érvényesül a hagyományos "Last Write Wins" (utolsó írás nyer) helyett.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### 4. Kódolási standardok
+Moduláris, tiszta Node.js kód, aszinkron műveletek helyes kezelése (Promises/async-await), és a Firebase Cloud Functions best practice-ek szigorú betartása.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### 5. Tesztelhetőség
+A szinkronizációs logikát és a streak (sorozat) számításokat izoláltan, egységtesztekkel (unit tests) lefedhető módon kell megírni.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Célkitűzés
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
-
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Egy robusztus, szerver nélküli (serverless) backend rendszer létrehozása egy szokáskövető (habit tracker) alkalmazáshoz.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+Ezen alkotmány a projekt minden további döntését és fejlesztését meghatározza. Valamennyi Pull Request (PR) és kódellenőrzés (Code Review) során vizsgálni kell az adott feladat alapelveknek való megfelelőségét.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-08

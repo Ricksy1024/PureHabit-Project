@@ -82,6 +82,12 @@
   Fill them out with the right functional requirements.
 -->
 
+### Constitution-Mandated Requirements *(non-negotiable)*
+
+- **FR-CONST-01 (Biztonság)**: A hitelesítés KIZÁRÓLAG 2FA (TOTP / Authenticator) alapon működhet. SMS használata szigorúan TILOS.
+- **FR-CONST-02 (Adatvédelem)**: Törlési kérelmek esetén teljes, visszaállíthatatlan kaszkádolt "Hard Delete" kötelező minden adatra és autentikációs entitásra.
+- **FR-CONST-03 (Szinkronizáció)**: Szinkronizációs ütközéseknél "Logikai VAGY" elv alkalmazandó a rögzített szokásokra, "Last Write Wins" felülírás helyett.
+
 ### Functional Requirements
 
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]

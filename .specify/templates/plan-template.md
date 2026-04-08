@@ -31,7 +31,11 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] Biztonság: Kizárólag TOTP 2FA, SMS tiltott?
+- [ ] Adatvédelem: Hard Delete (kaszkádolt) alkalmazva törlésnél minden releváns helyen?
+- [ ] Szinkronizáció: "Logikai VAGY" (OR) elv érvényesül konfliktusnál LWW helyett?
+- [ ] Kódolás: Moduláris Node.js / Promise / Firebase CF best practice-ek betartva?
+- [ ] Tesztelhetőség: Szinkronizáció és streak számítás teljesen izolálható és egységtesztekkel bizonyítható?
 
 ## Project Structure
 
