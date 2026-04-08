@@ -101,6 +101,7 @@
 - **CON-002**: System MUST implement a "Hard Delete" on all user databases records and Auth account on user account deletion.
 - **CON-003**: System MUST NOT lose any recorded habit completion during sync (conflict resolution MUST use "Logical OR").
 - **CON-004**: System MUST have its synchronization and streak logic completely decoupled and fully covered by unit tests.
+- **CON-005**: AI Agents executing tasks MUST exclusively use the Context7 MCP server for documentation and the Firebase MCP server for Firebase actions.
 
 ### Key Entities *(include if feature involves data)*
 

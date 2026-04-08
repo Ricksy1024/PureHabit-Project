@@ -1,19 +1,14 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0-template → 1.0.0
+- Version change: 1.0.0 → 1.1.0
 - List of modified principles:
-  - Security First: Authentication must strictly use TOTP
-  - Strict Data Protection (GDPR): Cascading "Hard Delete" required
-  - User-Centric Synchronization: "Logical OR" principle instead of "Last Write Wins"
-  - Coding Standards: Modular Node.js, async/await, Firebase best practices
-  - Testability: Isolation and unit test coverage for sync and streak logic
+  - Added new principle: AI Agent Tooling (MCP Usage Constraints)
 - Added sections: None
-- Removed sections: Sections 2 and 3 unassigned, keeping general templates to enforce rules
+- Removed sections: None
 - Templates requiring updates (✅ updated / ⚠ pending):
   ✅ .specify/templates/plan-template.md
   ✅ .specify/templates/spec-template.md
-  ✅ .specify/templates/tasks-template.md
-- Follow-up TODOs: Implement the template updates to reflect purehabit principles
+- Follow-up TODOs: None
 -->
 
 # PureHabit Backend Constitution
@@ -35,10 +30,13 @@ Modular, clean Node.js code, proper handling of asynchronous operations (Promise
 ### V. Testability
 Synchronization logic and streak calculations must be written in an isolated manner, fully coverable by unit tests.
 
+### VI. AI Agent Tooling
+To effectively navigate and implement the stack, the AI agent MUST use the Context7 MCP server for retrieving all software documentation. The agent MUST use the Firebase MCP server directly for executing Firebase actions.
+
 ## Governance
 
 - All updates to the core synchronization logic or data retention models MUST be reviewed against this Constitution.
 - Amendments to this constitution must increment the version number following Semantic Versioning (MAJOR for breaking changes, MINOR for additions, PATCH for clarifications).
 - All Code Reviews MUST verify compliance with these core principles before merging.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-08
+**Version**: 1.1.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-08
