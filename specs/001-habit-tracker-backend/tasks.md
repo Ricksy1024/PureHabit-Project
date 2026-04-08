@@ -41,6 +41,7 @@
 - [ ] T009a [US1] Create the `setupTOTP` Callable Firebase Handler to generate initial secret/URI leveraging Firebase documentation in `functions/src/handlers/api.js`
 - [ ] T010 [US1] Create the `verifyTOTP` Callable Firebase Handler specified in contracts in `functions/src/handlers/api.js`
 - [ ] T011 [US1] Implement Firebase Auth `onCreate` trigger to initialize standard `users` profile data in `functions/src/handlers/triggers.js`
+- [ ] T011b [P] [US1] Implement Callable Auth Guard middleware to rigorously block requests lacking verified emails or TOTP confirmation in `functions/src/handlers/authMiddleware.js`
 
 **Checkpoint**: Secure login architecture is independently testable.
 
@@ -69,8 +70,10 @@
 
 ### Tests for User Story 3 (MANDATORY ⚠️)
 - [ ] T014 [P] [US3] Unit tests for pure `Logical OR` merge logic mathematically in `functions/tests/core/test_sync.js`
+- [ ] T014a [P] [US3] Unit tests enforcing strict 3:00 AM universal grace period offset math for "logical day" string parsing in `functions/tests/core/test_date.js`
 
 ### Implementation for User Story 3
+- [ ] T014b [P] [US3] Implement isolated logical day calculator pure functions applying the 3:00 AM overlap logic given an ISO string and timezone in `functions/src/core/date.js`
 - [ ] T015 [P] [US3] Implement `computeMerge` (Logical OR pure function) to determine winning state in `functions/src/core/sync.js`
 - [ ] T016 [US3] Create the `syncHabitLogs` Callable Firebase Handler in `functions/src/handlers/api.js`
 - [ ] T017 [US3] Implement Firestore Batched Writes utilizing `computeMerge` inside the handler resolving race conditions.

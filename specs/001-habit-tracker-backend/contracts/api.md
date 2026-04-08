@@ -40,6 +40,22 @@ Triggers the full GDPR cascade hard-delete and Auth removal.
 }
 ```
 
+
+
+## `setupTOTP` (Callable)
+Generates the initial TOTP secret and QR code URI for onboarding a new user device.
+
+**Request Body**: `{}` (Empty, identifies user via implicit Auth token context).
+
+**Response (Object)**:
+```json
+{
+  "success": true,
+  "secret": "string (base32)",
+  "qrUri": "otpauth://..."
+}
+```
+
 ## `verifyTOTP` (Callable)
 Verifies a generated TOTP payload during login or setup.
 
