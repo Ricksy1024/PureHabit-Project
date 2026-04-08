@@ -5,6 +5,13 @@
 **Status**: Draft
 **Input**: User description for building the PureHabit backend core.
 
+## Clarifications
+
+### Session 2026-04-08
+- Q: Midnight Cutoff & Grace Periods → A: Fixed universal grace period (logical "day" ends at 3:00 AM local time).
+- Q: Single Habit Deletion Strategy → A: Soft delete (archive) the habit to preserve historical logs.
+- Q: "X times a week" Habit Evaluation → A: Habits map to specific days (e.g. Mon/Wed/Fri) allowing streak breaks to be calculated immediately.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Secure Login & Onboarding (Priority: P1)
@@ -100,7 +107,7 @@ The user travels across timezones and sets a reminder for a habit at 8:00 PM. Th
 ### Key Entities
 
 - **User**: Core profile containing timezone settings, Auth references, and TOTP secrets.
-- **Habit**: Configuration for a tracked activity (e.g. Schedule, frequency rules, reminder times).
+- **Habit**: Configuration for a tracked activity. Includes schedule mapping to **specific designated days** (e.g. Mon, Wed), reminder times, and an "archived" boolean state for soft-deletion.
 - **Habit Log**: Immutable un-deletable (unless account is deleted) event representing a completion occurrence on a specific date/time for a habit.
 - **Streak Status**: Calculated metric for a Habit containing "Current Streak" and "Longest Historic Streak".
 
@@ -117,5 +124,5 @@ The user travels across timezones and sets a reminder for a habit at 8:00 PM. Th
 
 - Users have intermittent internet connectivity, thus syncing payloads may contain events from days or weeks ago.
 - Push Notification infrastructure (like APNS/FCM) will be integrated with our push worker.
-- A "day" is strictly defined by the user's current contextual timezone.
+- A logical "day" is strictly defined by the user's current contextual timezone, but extended with a fixed 3:00 AM grace period (e.g. 2:00 AM on Tuesday counts towards Monday's streak).
 - The backend will use Node.js and Firebase based on the constitutional templates.
