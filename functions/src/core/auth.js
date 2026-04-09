@@ -6,6 +6,11 @@ const crypto = require('crypto');
 const { TOTP_CONFIG, VALIDATORS } = require('./models');
 
 const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const KMS_SECRET_PREFIX = 'kms:';
+const LOCAL_SECRET_PREFIX = 'local:';
+const DEV_FALLBACK_LOCAL_KEY = 'purehabit-dev-local-key';
+
+let cachedKmsClient = null;
 
 function base32Encode(buffer) {
   let bits = '';
@@ -94,6 +99,156 @@ function getAuthenticator() {
   }
 }
 
+function getKmsClient(options = {}) {
+  if (options.kmsClient) {
+    return options.kmsClient;
+  }
+
+  if (cachedKmsClient) {
+    return cachedKmsClient;
+  }
+
+  try {
+    const { KeyManagementServiceClient } = require('@google-cloud/kms');
+    cachedKmsClient = new KeyManagementServiceClient();
+    return cachedKmsClient;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function resolveKmsKeyName(options = {}) {
+  if (typeof options.kmsKeyName === 'string' && options.kmsKeyName) {
+    return options.kmsKeyName;
+  }
+  return process.env.TOTP_KMS_KEY_NAME || '';
+}
+
+function resolveLocalEncryptionKey(options = {}) {
+  if (typeof options.localKey === 'string' && options.localKey) {
+    return options.localKey;
+  }
+
+  if (typeof process.env.TOTP_LOCAL_ENCRYPTION_KEY === 'string' && process.env.TOTP_LOCAL_ENCRYPTION_KEY) {
+    return process.env.TOTP_LOCAL_ENCRYPTION_KEY;
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    return DEV_FALLBACK_LOCAL_KEY;
+  }
+
+  return '';
+}
+
+function isEncryptedTOTPSecret(secret) {
+  return (
+    typeof secret === 'string' &&
+    (secret.startsWith(KMS_SECRET_PREFIX) || secret.startsWith(LOCAL_SECRET_PREFIX))
+  );
+}
+
+function deriveKey(localKey) {
+  return crypto.createHash('sha256').update(localKey, 'utf8').digest();
+}
+
+function encryptWithLocalKey(secret, localKey) {
+  const key = deriveKey(localKey);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${LOCAL_SECRET_PREFIX}${iv.toString('base64')}.${authTag.toString('base64')}.${ciphertext.toString('base64')}`;
+}
+
+function decryptWithLocalKey(payload, localKey) {
+  const encoded = payload.slice(LOCAL_SECRET_PREFIX.length);
+  const [ivB64, tagB64, ciphertextB64] = encoded.split('.');
+  if (!ivB64 || !tagB64 || !ciphertextB64) {
+    throw new Error('Invalid local encrypted payload format');
+  }
+
+  const key = deriveKey(localKey);
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    key,
+    Buffer.from(ivB64, 'base64')
+  );
+  decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+  const plaintext = Buffer.concat([
+    decipher.update(Buffer.from(ciphertextB64, 'base64')),
+    decipher.final(),
+  ]);
+  return plaintext.toString('utf8');
+}
+
+async function encryptWithKms(secret, keyName, kmsClient) {
+  const [response] = await kmsClient.encrypt({
+    name: keyName,
+    plaintext: Buffer.from(secret, 'utf8'),
+  });
+
+  return `${KMS_SECRET_PREFIX}${Buffer.from(response.ciphertext).toString('base64')}`;
+}
+
+async function decryptWithKms(payload, keyName, kmsClient) {
+  const ciphertext = Buffer.from(payload.slice(KMS_SECRET_PREFIX.length), 'base64');
+  const [response] = await kmsClient.decrypt({
+    name: keyName,
+    ciphertext,
+  });
+
+  return Buffer.from(response.plaintext).toString('utf8');
+}
+
+async function encryptTOTPSecret(secret, options = {}) {
+  if (typeof secret !== 'string' || !secret) {
+    throw new Error('A non-empty TOTP secret is required for encryption');
+  }
+
+  if (isEncryptedTOTPSecret(secret)) {
+    return secret;
+  }
+
+  const kmsClient = getKmsClient(options);
+  const kmsKeyName = resolveKmsKeyName(options);
+  if (kmsClient && kmsKeyName) {
+    return encryptWithKms(secret, kmsKeyName, kmsClient);
+  }
+
+  const localKey = resolveLocalEncryptionKey(options);
+  if (!localKey) {
+    throw new Error('TOTP encryption is not configured. Set TOTP_KMS_KEY_NAME or TOTP_LOCAL_ENCRYPTION_KEY.');
+  }
+
+  return encryptWithLocalKey(secret, localKey);
+}
+
+async function decryptTOTPSecret(secret, options = {}) {
+  if (typeof secret !== 'string' || !secret) {
+    return null;
+  }
+
+  if (secret.startsWith(KMS_SECRET_PREFIX)) {
+    const kmsClient = getKmsClient(options);
+    const kmsKeyName = resolveKmsKeyName(options);
+    if (!kmsClient || !kmsKeyName) {
+      throw new Error('KMS secret detected but KMS client/key is not configured');
+    }
+    return decryptWithKms(secret, kmsKeyName, kmsClient);
+  }
+
+  if (secret.startsWith(LOCAL_SECRET_PREFIX)) {
+    const localKey = resolveLocalEncryptionKey(options);
+    if (!localKey) {
+      throw new Error('Local encrypted secret detected but local key is missing');
+    }
+    return decryptWithLocalKey(secret, localKey);
+  }
+
+  // Plaintext fallback for migration; callers should re-encrypt after successful verification.
+  return secret;
+}
+
 function generateTOTPSecret(email, appName = 'PureHabit') {
   const authenticator = getAuthenticator();
   const safeEmail = typeof email === 'string' && email ? email : 'user@purehabit.local';
@@ -121,4 +276,7 @@ function verifyTOTPToken(token, secret) {
 module.exports = {
   generateTOTPSecret,
   verifyTOTPToken,
+  encryptTOTPSecret,
+  decryptTOTPSecret,
+  isEncryptedTOTPSecret,
 };

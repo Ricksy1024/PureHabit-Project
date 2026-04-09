@@ -2,10 +2,16 @@ const { onCall } = require('firebase-functions/v2/https');
 const { admin, db, auth } = require('./db');
 const { withErrorHandling, throwHttpsError } = require('./errors');
 const { requireCallableAuth } = require('./authMiddleware');
-const { generateTOTPSecret, verifyTOTPToken } = require('../core/auth');
+const {
+  generateTOTPSecret,
+  verifyTOTPToken,
+  encryptTOTPSecret,
+  decryptTOTPSecret,
+  isEncryptedTOTPSecret,
+} = require('../core/auth');
 const { deleteUserDataCascade } = require('../core/deletion');
 const { computeMerge } = require('../core/sync');
-const { getLogicalDay } = require('../core/date');
+const { getLogicalDay, normalizeTimezone } = require('../core/date');
 const { COLLECTIONS, VALIDATORS } = require('../core/models');
 
 function serverTimestamp() {
@@ -13,6 +19,55 @@ function serverTimestamp() {
     return admin.firestore.FieldValue.serverTimestamp();
   }
   return new Date();
+}
+
+function getSecretCryptoOptions(deps = {}) {
+  return {
+    kmsClient: deps.kmsClient,
+    kmsKeyName: deps.kmsKeyName,
+    localKey: deps.localEncryptionKey,
+  };
+}
+
+async function getUserProfile(dbClient, uid) {
+  const snapshot = await dbClient.collection(COLLECTIONS.USERS).doc(uid).get();
+  if (!snapshot.exists) {
+    return {};
+  }
+
+  return snapshot.data() || {};
+}
+
+function validateSyncLogEntry(entry) {
+  if (!entry || typeof entry.habitId !== 'string' || !VALIDATORS.isValidDateString(entry.dateString)) {
+    throwHttpsError('invalid-argument', 'Each log must include habitId and dateString (YYYY-MM-DD).');
+  }
+
+  if (entry.timestamp && Number.isNaN(new Date(entry.timestamp).getTime())) {
+    throwHttpsError('invalid-argument', 'timestamp must be a valid ISO-8601 date string.');
+  }
+}
+
+async function getOwnedHabitIds(dbClient, uid, habitIds) {
+  const owned = new Set();
+
+  await Promise.all(
+    [...habitIds].map(async (habitId) => {
+      const habitSnapshot = await dbClient.collection(COLLECTIONS.HABITS).doc(habitId).get();
+      if (!habitSnapshot.exists) {
+        throwHttpsError('not-found', `Habit ${habitId} was not found.`);
+      }
+
+      const habit = habitSnapshot.data() || {};
+      if (habit.userId !== uid) {
+        throwHttpsError('permission-denied', `Habit ${habitId} is not owned by the authenticated user.`);
+      }
+
+      owned.add(habitId);
+    })
+  );
+
+  return owned;
 }
 
 async function setupTOTPHandler(request, deps = {}) {
@@ -24,6 +79,7 @@ async function setupTOTPHandler(request, deps = {}) {
   const resolvedEmail = email || userRecord.email;
 
   const { secret, qrUri } = generateTOTPSecret(resolvedEmail, 'PureHabit');
+  const encryptedSecret = await encryptTOTPSecret(secret, getSecretCryptoOptions(deps));
 
   await dbClient.collection(COLLECTIONS.USERS).doc(uid).set(
     {
@@ -31,7 +87,7 @@ async function setupTOTPHandler(request, deps = {}) {
       email: resolvedEmail || null,
       totp: {
         enabled: false,
-        secret,
+        secret: encryptedSecret,
       },
       updatedAt: serverTimestamp(),
     },
@@ -62,7 +118,12 @@ async function verifyTOTPHandler(request, deps = {}) {
   }
 
   const userData = userSnapshot.data() || {};
-  const secret = userData.totp && userData.totp.secret;
+  const storedSecret = userData.totp && userData.totp.secret;
+  if (!storedSecret) {
+    throwHttpsError('failed-precondition', 'TOTP setup must be completed first.');
+  }
+
+  const secret = await decryptTOTPSecret(storedSecret, getSecretCryptoOptions(deps));
   if (!secret) {
     throwHttpsError('failed-precondition', 'TOTP setup must be completed first.');
   }
@@ -70,18 +131,27 @@ async function verifyTOTPHandler(request, deps = {}) {
   const valid = verifyTOTPToken(token, secret);
 
   if (valid) {
+    const persistedSecret = isEncryptedTOTPSecret(storedSecret)
+      ? storedSecret
+      : await encryptTOTPSecret(secret, getSecretCryptoOptions(deps));
+
     await userRef.set(
       {
         totp: {
           enabled: true,
-          secret,
+          secret: persistedSecret,
         },
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
 
-    await authClient.setCustomUserClaims(uid, { totpVerified: true });
+    const authRecord = await authClient.getUser(uid);
+    const existingClaims = authRecord.customClaims || {};
+    await authClient.setCustomUserClaims(uid, {
+      ...existingClaims,
+      totpVerified: true,
+    });
   }
 
   return {
@@ -115,15 +185,21 @@ async function syncHabitLogsHandler(request, deps = {}) {
     throwHttpsError('invalid-argument', 'logs must be an array.');
   }
 
-  const timezone = token.timezone || 'UTC';
+  const userProfile = await getUserProfile(dbClient, uid);
+  const timezone = normalizeTimezone(userProfile.timezone, normalizeTimezone(token.timezone, 'UTC'));
+  const habitIds = new Set();
+
+  logs.forEach((entry) => {
+    validateSyncLogEntry(entry);
+    habitIds.add(entry.habitId);
+  });
+
+  const ownedHabitIds = await getOwnedHabitIds(dbClient, uid, habitIds);
   let processedCount = 0;
-  let writesInBatch = 0;
-  let batch = dbClient.batch();
-  const commits = [];
 
   for (const entry of logs) {
-    if (!entry || typeof entry.habitId !== 'string' || !VALIDATORS.isValidDateString(entry.dateString)) {
-      throwHttpsError('invalid-argument', 'Each log must include habitId and dateString (YYYY-MM-DD).');
+    if (!ownedHabitIds.has(entry.habitId)) {
+      throwHttpsError('permission-denied', `Habit ${entry.habitId} is not owned by the authenticated user.`);
     }
 
     const sourceIso =
@@ -134,34 +210,24 @@ async function syncHabitLogsHandler(request, deps = {}) {
     const documentId = `${uid}_${entry.habitId}_${logicalDay}`;
     const reference = dbClient.collection(COLLECTIONS.HABIT_LOGS).doc(documentId);
 
-    const currentDoc = await reference.get();
-    const merged = computeMerge(
-      {
-        habitId: entry.habitId,
-        userId: uid,
-        dateString: logicalDay,
-        completed: Boolean(entry.completed),
-        timestamp: entry.timestamp || new Date().toISOString(),
-      },
-      currentDoc.exists ? currentDoc.data() : {}
-    );
+    await dbClient.runTransaction(async (transaction) => {
+      const currentDoc = await transaction.get(reference);
+      const merged = computeMerge(
+        {
+          habitId: entry.habitId,
+          userId: uid,
+          dateString: logicalDay,
+          completed: Boolean(entry.completed),
+          timestamp: entry.timestamp || new Date().toISOString(),
+        },
+        currentDoc.exists ? currentDoc.data() : {}
+      );
 
-    batch.set(reference, merged, { merge: true });
+      transaction.set(reference, merged, { merge: true });
+    });
+
     processedCount += 1;
-    writesInBatch += 1;
-
-    if (writesInBatch >= 450) {
-      commits.push(batch.commit());
-      batch = dbClient.batch();
-      writesInBatch = 0;
-    }
   }
-
-  if (writesInBatch > 0) {
-    commits.push(batch.commit());
-  }
-
-  await Promise.all(commits);
 
   return {
     success: true,

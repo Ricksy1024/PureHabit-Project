@@ -40,16 +40,83 @@ function generateToken(secret, timeMs) {
   return code.toString().padStart(6, '0');
 }
 
-describe('API handlers', () => {
-  test('setupTOTPHandler stores generated secret and URI', async () => {
-    const set = jest.fn().mockResolvedValue(undefined);
-    const db = {
-      collection: jest.fn(() => ({
-        doc: jest.fn(() => ({
-          set,
-        })),
+function cloneValue(value) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function createDbMock(seed = {}) {
+  const store = {
+    users: new Map(Object.entries(seed.users || {})),
+    habits: new Map(Object.entries(seed.habits || {})),
+    habit_logs: new Map(Object.entries(seed.habit_logs || {})),
+  };
+
+  function getCollectionMap(collectionName) {
+    if (!store[collectionName]) {
+      store[collectionName] = new Map();
+    }
+    return store[collectionName];
+  }
+
+  function createDocRef(collectionName, id) {
+    const collectionMap = getCollectionMap(collectionName);
+
+    return {
+      id,
+      _collectionName: collectionName,
+      get: jest.fn(async () => ({
+        exists: collectionMap.has(id),
+        data: () => cloneValue(collectionMap.get(id)),
       })),
+      set: jest.fn(async (payload, options = {}) => {
+        if (options.merge && collectionMap.has(id)) {
+          collectionMap.set(id, {
+            ...cloneValue(collectionMap.get(id)),
+            ...cloneValue(payload),
+          });
+          return;
+        }
+
+        collectionMap.set(id, cloneValue(payload));
+      }),
     };
+  }
+
+  let transactionQueue = Promise.resolve();
+  const db = {
+    _store: store,
+    collection: jest.fn((collectionName) => ({
+      doc: jest.fn((id) => createDocRef(collectionName, id)),
+    })),
+    runTransaction: jest.fn(async (callback) => {
+      const run = transactionQueue.then(async () => {
+        const writes = [];
+        const transaction = {
+          get: jest.fn(async (ref) => ref.get()),
+          set: jest.fn((ref, payload, options) => {
+            writes.push({ ref, payload, options });
+          }),
+        };
+
+        const result = await callback(transaction);
+        await Promise.all(writes.map((write) => write.ref.set(write.payload, write.options)));
+        return result;
+      });
+
+      transactionQueue = run.catch(() => {});
+      return run;
+    }),
+  };
+
+  return db;
+}
+
+describe('API handlers', () => {
+  test('setupTOTPHandler stores encrypted secret and returns setup payload', async () => {
+    const db = createDbMock();
 
     const auth = {
       getUser: jest.fn().mockResolvedValue({ email: 'user@example.com' }),
@@ -65,33 +132,32 @@ describe('API handlers', () => {
       data: {},
     };
 
-    const result = await setupTOTPHandler(request, { db, auth });
+    const result = await setupTOTPHandler(request, {
+      db,
+      auth,
+      localEncryptionKey: 'test-local-key',
+    });
 
     expect(result.success).toBe(true);
     expect(result.secret).toMatch(/^[A-Z2-7]+=*$/);
     expect(result.qrUri).toMatch(/^otpauth:\/\/totp\//);
-    expect(set).toHaveBeenCalledTimes(1);
+
+    const savedUser = db._store.users.get('user-1');
+    expect(savedUser.totp.secret.startsWith('local:')).toBe(true);
   });
 
-  test('verifyTOTPHandler validates token and sets custom claim', async () => {
-    const set = jest.fn().mockResolvedValue(undefined);
+  test('verifyTOTPHandler validates token, migrates plaintext secret, and merges claims', async () => {
     const secret = 'JBSWY3DPEHPK3PXP';
-
-    const db = {
-      collection: jest.fn(() => ({
-        doc: jest.fn(() => ({
-          get: jest.fn().mockResolvedValue({
-            exists: true,
-            data: () => ({
-              totp: { secret },
-            }),
-          }),
-          set,
-        })),
-      })),
-    };
+    const db = createDbMock({
+      users: {
+        'user-1': {
+          totp: { secret },
+        },
+      },
+    });
 
     const auth = {
+      getUser: jest.fn().mockResolvedValue({ customClaims: { role: 'admin' } }),
       setCustomUserClaims: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -107,35 +173,32 @@ describe('API handlers', () => {
       },
     };
 
-    const result = await verifyTOTPHandler(request, { db, auth });
+    const result = await verifyTOTPHandler(request, {
+      db,
+      auth,
+      localEncryptionKey: 'test-local-key',
+    });
 
     expect(result).toEqual({ success: true, valid: true });
-    expect(set).toHaveBeenCalledTimes(1);
-    expect(auth.setCustomUserClaims).toHaveBeenCalledWith('user-1', { totpVerified: true });
+
+    const savedUser = db._store.users.get('user-1');
+    expect(savedUser.totp.enabled).toBe(true);
+    expect(savedUser.totp.secret.startsWith('local:')).toBe(true);
+    expect(auth.setCustomUserClaims).toHaveBeenCalledWith('user-1', {
+      role: 'admin',
+      totpVerified: true,
+    });
   });
 
-  test('syncHabitLogsHandler processes historical payload and applies logical day', async () => {
-    const writes = [];
-    const docs = new Map();
-
-    const db = {
-      batch: jest.fn(() => ({
-        set: jest.fn((ref, data) => {
-          writes.push({ id: ref.id, data });
-          docs.set(ref.id, data);
-        }),
-        commit: jest.fn().mockResolvedValue(undefined),
-      })),
-      collection: jest.fn(() => ({
-        doc: jest.fn((id) => ({
-          id,
-          get: jest.fn().mockResolvedValue({
-            exists: docs.has(id),
-            data: () => docs.get(id),
-          }),
-        })),
-      })),
-    };
+  test('syncHabitLogsHandler uses user profile timezone and writes with transactional merge', async () => {
+    const db = createDbMock({
+      users: {
+        'user-1': { timezone: 'America/Los_Angeles' },
+      },
+      habits: {
+        'habit-1': { userId: 'user-1' },
+      },
+    });
 
     const request = {
       auth: {
@@ -152,7 +215,7 @@ describe('API handlers', () => {
             habitId: 'habit-1',
             dateString: '2026-04-09',
             completed: true,
-            timestamp: '2026-04-09T01:15:00.000Z',
+            timestamp: '2026-04-09T07:30:00.000Z',
           },
         ],
       },
@@ -161,10 +224,102 @@ describe('API handlers', () => {
     const result = await syncHabitLogsHandler(request, { db });
 
     expect(result).toEqual({ success: true, processedCount: 1 });
-    expect(writes).toHaveLength(1);
-    expect(writes[0].id).toBe('user-1_habit-1_2026-04-08');
-    expect(writes[0].data.completed).toBe(true);
-    expect(writes[0].data.dateString).toBe('2026-04-08');
+
+    const saved = db._store.habit_logs.get('user-1_habit-1_2026-04-08');
+    expect(saved.completed).toBe(true);
+    expect(saved.dateString).toBe('2026-04-08');
+    expect(db.runTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  test('syncHabitLogsHandler rejects habit IDs not owned by caller', async () => {
+    const db = createDbMock({
+      users: {
+        'user-1': { timezone: 'UTC' },
+      },
+      habits: {
+        'habit-1': { userId: 'user-2' },
+      },
+    });
+
+    const request = {
+      auth: {
+        uid: 'user-1',
+        token: {
+          email_verified: true,
+          totpVerified: true,
+        },
+      },
+      data: {
+        logs: [
+          {
+            habitId: 'habit-1',
+            dateString: '2026-04-09',
+            completed: true,
+            timestamp: '2026-04-09T10:00:00.000Z',
+          },
+        ],
+      },
+    };
+
+    await expect(syncHabitLogsHandler(request, { db })).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  test('syncHabitLogsHandler preserves completed=true under concurrent conflicting writes', async () => {
+    const db = createDbMock({
+      users: {
+        'user-1': { timezone: 'UTC' },
+      },
+      habits: {
+        'habit-1': { userId: 'user-1' },
+      },
+    });
+
+    const baseAuth = {
+      uid: 'user-1',
+      token: {
+        email_verified: true,
+        totpVerified: true,
+      },
+    };
+
+    const requestTrue = {
+      auth: baseAuth,
+      data: {
+        logs: [
+          {
+            habitId: 'habit-1',
+            dateString: '2026-04-09',
+            completed: true,
+            timestamp: '2026-04-09T09:00:00.000Z',
+          },
+        ],
+      },
+    };
+
+    const requestFalse = {
+      auth: baseAuth,
+      data: {
+        logs: [
+          {
+            habitId: 'habit-1',
+            dateString: '2026-04-09',
+            completed: false,
+            timestamp: '2026-04-09T10:00:00.000Z',
+          },
+        ],
+      },
+    };
+
+    await Promise.all([
+      syncHabitLogsHandler(requestFalse, { db }),
+      syncHabitLogsHandler(requestTrue, { db }),
+    ]);
+
+    const saved = db._store.habit_logs.get('user-1_habit-1_2026-04-09');
+    expect(saved.completed).toBe(true);
+    expect(db.runTransaction).toHaveBeenCalledTimes(2);
   });
 
   test('syncHabitLogsHandler blocks requests without totp verification', async () => {

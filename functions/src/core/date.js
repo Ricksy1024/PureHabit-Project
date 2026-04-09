@@ -1,5 +1,30 @@
 const { GRACE_PERIOD_HOUR } = require('./models');
 
+function isValidTimezone(timezone) {
+  if (typeof timezone !== 'string' || !timezone) {
+    return false;
+  }
+
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function normalizeTimezone(primaryTimezone, fallbackTimezone = 'UTC') {
+  if (isValidTimezone(primaryTimezone)) {
+    return primaryTimezone;
+  }
+
+  if (isValidTimezone(fallbackTimezone)) {
+    return fallbackTimezone;
+  }
+
+  return 'UTC';
+}
+
 function parseIso(isoString) {
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) {
@@ -61,4 +86,6 @@ function getLogicalDay(isoString, timezone = 'UTC') {
 module.exports = {
   getLogicalDay,
   getLocalTimeParts,
+  normalizeTimezone,
+  isValidTimezone,
 };

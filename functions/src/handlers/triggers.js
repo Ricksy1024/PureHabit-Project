@@ -4,7 +4,7 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { admin, db } = require('./db');
 const { COLLECTIONS, FREQUENCY_TYPES } = require('../core/models');
 const { calculateStreaks } = require('../core/streaks');
-const { getLogicalDay } = require('../core/date');
+const { getLogicalDay, normalizeTimezone } = require('../core/date');
 const { shouldSendReminder } = require('../core/reminders');
 const { sendHabitReminder } = require('./notifications');
 
@@ -13,6 +13,17 @@ function serverTimestamp() {
     return admin.firestore.FieldValue.serverTimestamp();
   }
   return new Date();
+}
+
+async function getUserDataCached(dbClient, userId, userCache) {
+  if (userCache.has(userId)) {
+    return userCache.get(userId);
+  }
+
+  const snapshot = await dbClient.collection(COLLECTIONS.USERS).doc(userId).get();
+  const userData = snapshot.exists ? snapshot.data() || {} : null;
+  userCache.set(userId, userData);
+  return userData;
 }
 
 async function onUserCreateHandler(event, deps = {}) {
@@ -59,6 +70,9 @@ async function onHabitLogWriteHandler(event, deps = {}) {
   }
 
   const habit = habitSnapshot.data() || {};
+  const userSnapshot = await dbClient.collection(COLLECTIONS.USERS).doc(userId).get();
+  const userData = userSnapshot.exists ? userSnapshot.data() || {} : {};
+  const timezone = normalizeTimezone(userData.timezone, normalizeTimezone(habit.timezone, 'UTC'));
   const frequency = habit.frequency || {
     type: FREQUENCY_TYPES.SPECIFIC_DAYS,
     days: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
@@ -77,7 +91,7 @@ async function onHabitLogWriteHandler(event, deps = {}) {
     ? Number((existingStatus.data() || {}).longestStreak || 0)
     : 0;
 
-  const todayDateString = getLogicalDay(new Date().toISOString(), habit.timezone || 'UTC');
+  const todayDateString = getLogicalDay(new Date().toISOString(), timezone);
   const streaks = calculateStreaks({
     logs,
     frequency,
@@ -103,51 +117,93 @@ async function reminderSchedulerHandler(_event, deps = {}) {
   const messagingClient = deps.messaging || admin.messaging();
   const nowIso = new Date().toISOString();
 
-  const habitsSnapshot = await dbClient.collection(COLLECTIONS.HABITS).where('archived', '==', false).get();
+  const pageSize = Math.max(1, Number(process.env.REMINDER_PAGE_SIZE) || 200);
+  const maxHabitsPerRun = Math.max(pageSize, Number(process.env.REMINDER_MAX_HABITS_PER_RUN) || 2000);
+  const userCache = new Map();
+  let lastDoc = null;
+  let processedHabits = 0;
+  let remindersSent = 0;
 
-  for (const habitDoc of habitsSnapshot.docs || []) {
-    const habit = habitDoc.data() || {};
-    const habitId = habitDoc.id;
-    const userId = habit.userId;
+  while (processedHabits < maxHabitsPerRun) {
+    let query = dbClient
+      .collection(COLLECTIONS.HABITS)
+      .where('archived', '==', false)
+      .orderBy('__name__')
+      .limit(pageSize);
 
-    if (!userId) {
-      continue;
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
     }
 
-    const userSnapshot = await dbClient.collection(COLLECTIONS.USERS).doc(userId).get();
-    if (!userSnapshot.exists) {
-      continue;
+    const habitsSnapshot = await query.get();
+    const habits = habitsSnapshot.docs || [];
+    if (!habits.length) {
+      break;
     }
 
-    const user = userSnapshot.data() || {};
-    const timezone = user.timezone || 'UTC';
-    const logicalDay = getLogicalDay(nowIso, timezone);
-    const logDocId = `${userId}_${habitId}_${logicalDay}`;
-    const logSnapshot = await dbClient.collection(COLLECTIONS.HABIT_LOGS).doc(logDocId).get();
+    for (const habitDoc of habits) {
+      if (processedHabits >= maxHabitsPerRun) {
+        break;
+      }
 
-    const completionByDate = {
-      [logicalDay]: logSnapshot.exists ? Boolean((logSnapshot.data() || {}).completed) : false,
-    };
+      processedHabits += 1;
+      const habit = habitDoc.data() || {};
+      const habitId = habitDoc.id;
+      const userId = habit.userId;
 
-    const due = shouldSendReminder({
-      habit,
-      nowIso,
-      timezone,
-      completionByDate,
-    });
+      if (!userId) {
+        continue;
+      }
 
-    if (!due) {
-      continue;
+      const user = await getUserDataCached(dbClient, userId, userCache);
+      if (!user) {
+        continue;
+      }
+
+      const timezone = normalizeTimezone(user.timezone, 'UTC');
+      const logicalDay = getLogicalDay(nowIso, timezone);
+      const logDocId = `${userId}_${habitId}_${logicalDay}`;
+      const logSnapshot = await dbClient.collection(COLLECTIONS.HABIT_LOGS).doc(logDocId).get();
+
+      const completionByDate = {
+        [logicalDay]: logSnapshot.exists ? Boolean((logSnapshot.data() || {}).completed) : false,
+      };
+
+      const due = shouldSendReminder({
+        habit,
+        nowIso,
+        timezone,
+        completionByDate,
+      });
+
+      if (!due) {
+        continue;
+      }
+
+      const sendResult = await sendHabitReminder({
+        messagingClient,
+        deviceToken: user.pushToken,
+        userId,
+        habitId,
+        habitName: habit.name,
+      });
+
+      if (sendResult && sendResult.success) {
+        remindersSent += 1;
+      }
     }
 
-    await sendHabitReminder({
-      messagingClient,
-      deviceToken: user.pushToken,
-      userId,
-      habitId,
-      habitName: habit.name,
-    });
+    if (habits.length < pageSize) {
+      break;
+    }
+
+    lastDoc = habits[habits.length - 1];
   }
+
+  return {
+    processedHabits,
+    remindersSent,
+  };
 }
 
 const onUserCreate = onUserCreated(onUserCreateHandler);
