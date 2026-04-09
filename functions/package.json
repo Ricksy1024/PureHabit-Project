@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "test:ci": "jest --runInBand --ci --coverage",
+    "test:watch": "jest --watch"
   },
   "keywords": [],
   "author": "",

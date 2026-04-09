@@ -34,14 +34,14 @@
 **Independent Test**: Can be fully tested by creating an account and verifying `verifyTOTP` successfully activates the flow.
 
 ### Tests for User Story 1
-- [ ] T008 [P] [US1] Integration tests for `verifyTOTP` using mocked keys in `functions/tests/core/test_auth.js`
+- [x] T008 [P] [US1] Integration tests for `verifyTOTP` using mocked keys in `functions/tests/core/test_auth.js`
 
 ### Implementation for User Story 1
-- [ ] T009 [P] [US1] Implement TOTP generation/verification pure functions via `otplib` in `functions/src/core/auth.js`
-- [ ] T009a [US1] Create the `setupTOTP` Callable Firebase Handler to generate initial secret/URI leveraging Firebase documentation in `functions/src/handlers/api.js`
-- [ ] T010 [US1] Create the `verifyTOTP` Callable Firebase Handler specified in contracts in `functions/src/handlers/api.js`
-- [ ] T011 [US1] Implement Firebase Auth `onCreate` trigger to initialize standard `users` profile data in `functions/src/handlers/triggers.js`
-- [ ] T011b [P] [US1] Implement Callable Auth Guard middleware to rigorously block requests lacking verified emails or TOTP confirmation in `functions/src/handlers/authMiddleware.js`
+- [x] T009 [P] [US1] Implement TOTP generation/verification pure functions via `otplib` in `functions/src/core/auth.js`
+- [x] T009a [US1] Create the `setupTOTP` Callable Firebase Handler to generate initial secret/URI leveraging Firebase documentation in `functions/src/handlers/api.js`
+- [x] T010 [US1] Create the `verifyTOTP` Callable Firebase Handler specified in contracts in `functions/src/handlers/api.js`
+- [x] T011 [US1] Implement Firebase Auth `onCreate` trigger to initialize standard `users` profile data in `functions/src/handlers/triggers.js`
+- [x] T011b [P] [US1] Implement Callable Auth Guard middleware to rigorously block requests lacking verified emails or TOTP confirmation in `functions/src/handlers/authMiddleware.js`
 
 **Checkpoint**: Secure login architecture is independently testable.
 
@@ -53,11 +53,11 @@
 **Independent Test**: Execute `deleteAccountAction` and assert that associated subcollections and rules in Firestore are purged.
 
 ### Tests for User Story 2
-- [ ] T011a [P] [US2] Integration tests verifying full GDPR hard-delete cascading action across `firestore` in `functions/tests/core/test_deletion.js`
+- [x] T011a [P] [US2] Integration tests verifying full GDPR hard-delete cascading action across `firestore` in `functions/tests/core/test_deletion.js`
 
 ### Implementation for User Story 2
-- [ ] T012 [P] [US2] Implement deletion query cascade graphing service in `functions/src/core/deletion.js`
-- [ ] T013 [US2] Create the `deleteAccountAction` Callable Firebase Handler returning success message in `functions/src/handlers/api.js`
+- [x] T012 [P] [US2] Implement deletion query cascade graphing service in `functions/src/core/deletion.js`
+- [x] T013 [US2] Create the `deleteAccountAction` Callable Firebase Handler returning success message in `functions/src/handlers/api.js`
 
 **Checkpoint**: Data lifecycle handles privacy purges perfectly.
 
@@ -69,14 +69,14 @@
 **Independent Test**: Sync payloads with past dates explicitly merging without overwriting previously synchronized values.
 
 ### Tests for User Story 3 (MANDATORY ⚠️)
-- [ ] T014 [P] [US3] Unit tests for pure `Logical OR` merge logic mathematically in `functions/tests/core/test_sync.js`
-- [ ] T014a [P] [US3] Unit tests enforcing strict 3:00 AM universal grace period offset math for "logical day" string parsing in `functions/tests/core/test_date.js`
+- [x] T014 [P] [US3] Unit tests for pure `Logical OR` merge logic mathematically in `functions/tests/core/test_sync.js`
+- [x] T014a [P] [US3] Unit tests enforcing strict 3:00 AM universal grace period offset math for "logical day" string parsing in `functions/tests/core/test_date.js`
 
 ### Implementation for User Story 3
-- [ ] T014b [P] [US3] Implement isolated logical day calculator pure functions applying the 3:00 AM overlap logic given an ISO string and timezone in `functions/src/core/date.js`
-- [ ] T015 [P] [US3] Implement `computeMerge` (Logical OR pure function) to determine winning state in `functions/src/core/sync.js`
-- [ ] T016 [US3] Create the `syncHabitLogs` Callable Firebase Handler in `functions/src/handlers/api.js`
-- [ ] T017 [US3] Implement Firestore Batched Writes utilizing `computeMerge` inside the handler resolving race conditions.
+- [x] T014b [P] [US3] Implement isolated logical day calculator pure functions applying the 3:00 AM overlap logic given an ISO string and timezone in `functions/src/core/date.js`
+- [x] T015 [P] [US3] Implement `computeMerge` (Logical OR pure function) to determine winning state in `functions/src/core/sync.js`
+- [x] T016 [US3] Create the `syncHabitLogs` Callable Firebase Handler in `functions/src/handlers/api.js`
+- [x] T017 [US3] Implement Firestore Batched Writes utilizing `computeMerge` inside the handler resolving race conditions.
 
 **Checkpoint**: Core synchronization values flawlessly persist.
 
@@ -88,12 +88,12 @@
 **Independent Test**: Simulate frequency update triggers verifying `longestStreak` remains exactly identical pre- and post-hook.
 
 ### Tests for User Story 4 (MANDATORY ⚠️)
-- [ ] T018 [P] [US4] Unit tests for isolated streak calculator logic utilizing specific-days arrays in `functions/tests/core/test_streaks.js`
+- [x] T018 [P] [US4] Unit tests for isolated streak calculator logic utilizing specific-days arrays in `functions/tests/core/test_streaks.js`
 
 ### Implementation for User Story 4
-- [ ] T019 [P] [US4] Implement frequency evaluation rule engine (Specific Days array parsing) in `functions/src/core/rules.js`
-- [ ] T020 [US4] Implement streak calculator logic (evaluating `currentStreak` and `longestStreak`) in `functions/src/core/streaks.js`
-- [ ] T021 [US4] Implement `onWrite` Firestore trigger for `habit_logs` reacting and dispatching the cache recalculation to `streak_status` in `functions/src/handlers/triggers.js`
+- [x] T019 [P] [US4] Implement frequency evaluation rule engine (Specific Days array parsing) in `functions/src/core/rules.js`
+- [x] T020 [US4] Implement streak calculator logic (evaluating `currentStreak` and `longestStreak`) in `functions/src/core/streaks.js`
+- [x] T021 [US4] Implement `onWrite` Firestore trigger for `habit_logs` reacting and dispatching the cache recalculation to `streak_status` in `functions/src/handlers/triggers.js`
 
 **Checkpoint**: Streaks dynamically track real-world completions securely.
 
@@ -105,9 +105,9 @@
 **Independent Test**: Simulating local time against 8:00 PM constraints evaluates delivery true or suppressed boolean cleanly.
 
 ### Implementation for User Story 5
-- [ ] T022 [P] [US5] Implement timezone conversion and filter evaluator in `functions/src/core/reminders.js`
-- [ ] T023 [US5] Build the scheduled Pub/Sub job (`onSchedule`) Firebase trigger processing pending routines in `functions/src/handlers/triggers.js`
-- [ ] T024 [US5] Integrate Push Notification delivery skeleton using Firebase Admin Messaging in `functions/src/handlers/notifications.js`
+- [x] T022 [P] [US5] Implement timezone conversion and filter evaluator in `functions/src/core/reminders.js`
+- [x] T023 [US5] Build the scheduled Pub/Sub job (`onSchedule`) Firebase trigger processing pending routines in `functions/src/handlers/triggers.js`
+- [x] T024 [US5] Integrate Push Notification delivery skeleton using Firebase Admin Messaging in `functions/src/handlers/notifications.js`
 
 **Checkpoint**: End-to-end active notification pipeline complete.
 
@@ -117,9 +117,9 @@
 
 **Purpose**: Security hardening and operational readiness.
 
-- [ ] T025 Validate `.specify` template adherence verifying no hardcoded Firebase constraints violate standard principles.
-- [ ] T026 Update `package.json` setup and implement basic CI scripts ensuring `jest` runs smoothly.
-- [ ] T027 Code cleanup across `core/` to guarantee absolute lack of database imports globally ensuring high modularity.
+- [x] T025 Validate `.specify` template adherence verifying no hardcoded Firebase constraints violate standard principles.
+- [x] T026 Update `package.json` setup and implement basic CI scripts ensuring `jest` runs smoothly.
+- [x] T027 Code cleanup across `core/` to guarantee absolute lack of database imports globally ensuring high modularity.
 
 ---
 
