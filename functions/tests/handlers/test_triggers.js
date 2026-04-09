@@ -335,4 +335,59 @@ describe('trigger handlers', () => {
       jest.useRealTimers();
     }
   });
+
+  test('reminderSchedulerHandler processes only assigned partition when configured', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(Date.parse('2026-04-10T03:00:00.000Z'));
+
+    const previousPartitionCount = process.env.REMINDER_PARTITION_COUNT;
+    const previousPartitionSlot = process.env.REMINDER_PARTITION_SLOT;
+    process.env.REMINDER_PARTITION_COUNT = '2';
+    process.env.REMINDER_PARTITION_SLOT = '0';
+
+    const db = createTriggersDbMock({
+      users: {
+        'user-1': { timezone: 'America/Los_Angeles', pushToken: 'push-token-1' },
+      },
+      habits: {
+        'habit-1': {
+          userId: 'user-1',
+          archived: false,
+          name: 'Read',
+          reminders: [{ time: '20:00' }],
+        },
+        'habit-2': {
+          userId: 'user-1',
+          archived: false,
+          name: 'Walk',
+          reminders: [{ time: '20:00' }],
+        },
+      },
+    });
+
+    const messaging = {
+      send: jest.fn().mockResolvedValue('ok'),
+    };
+
+    try {
+      const result = await reminderSchedulerHandler({}, { db, messaging });
+      expect(result.processedHabits).toBe(1);
+      expect(result.remindersSent).toBe(1);
+      expect(messaging.send).toHaveBeenCalledTimes(1);
+    } finally {
+      if (previousPartitionCount === undefined) {
+        delete process.env.REMINDER_PARTITION_COUNT;
+      } else {
+        process.env.REMINDER_PARTITION_COUNT = previousPartitionCount;
+      }
+
+      if (previousPartitionSlot === undefined) {
+        delete process.env.REMINDER_PARTITION_SLOT;
+      } else {
+        process.env.REMINDER_PARTITION_SLOT = previousPartitionSlot;
+      }
+
+      jest.useRealTimers();
+    }
+  });
 });

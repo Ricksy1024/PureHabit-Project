@@ -1,7 +1,7 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Habit Tracker Backend Core
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Branch**: `001-habit-tracker-backend` | **Date**: 2026-04-08 | **Spec**: `/specs/001-habit-tracker-backend/spec.md`
+**Input**: Feature specification from `/specs/001-habit-tracker-backend/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
@@ -19,19 +19,19 @@ Implementation of the PureHabit backend core, utilizing a serverless Node.js arc
   the iteration process.
 -->
 
-**Language/Version**: Node.js v18+ 
-**Primary Dependencies**: firebase-functions, firebase-admin, otplib, jest 
-**Storage**: Firebase Cloud Firestore 
-**Testing**: Jest (pure functional isolation required) 
-**Target Platform**: Firebase Serverless 
-**Project Type**: Backend Services / Webhooks 
-**Performance Goals**: <500ms for conflict resolution operations 
-**Constraints**: Firebase limits, no synchronous frontend requirements. Sync and streaks must be fully decoupled and tested offline. 
+**Language/Version**: Node.js v18+
+**Primary Dependencies**: firebase-functions, firebase-admin, otplib, jest
+**Storage**: Firebase Cloud Firestore
+**Testing**: Jest (pure functional isolation required)
+**Target Platform**: Firebase Serverless
+**Project Type**: Backend Services / Webhooks
+**Performance Goals**: <500ms for conflict resolution operations
+**Constraints**: Firebase limits, no synchronous frontend requirements. Sync and streaks must be fully decoupled and tested offline.
 **Scale/Scope**: Serverless autoscaling architecture for sync operations
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 - [x] Security First: Authentication must strictly use TOTP (Authenticator App) based Two-Factor Authentication (2FA). SMS-based authentication is strictly prohibited.
 - [x] Strict Data Protection (GDPR): When a user account is deleted, a complete, irreversible, cascading "Hard Delete" must be applied to all database records and the Auth account itself.
@@ -54,6 +54,7 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
+
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
   for this feature. Delete unused options and expand the chosen structure with
@@ -83,7 +84,7 @@ functions/
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| Violation                  | Why Needed         | Simpler Alternative Rejected Because |
+| -------------------------- | ------------------ | ------------------------------------ |
+| [e.g., 4th project]        | [current need]     | [why 3 projects insufficient]        |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient]  |

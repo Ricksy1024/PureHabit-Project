@@ -13,6 +13,7 @@ const DEFAULT_REMINDER_PAGE_SIZE = 100;
 const DEFAULT_REMINDER_MAX_HABITS_PER_RUN = 1000;
 const DEFAULT_REMINDER_CONCURRENCY = 20;
 const DEFAULT_REMINDER_WARN_USAGE_RATIO = 0.8;
+const DEFAULT_REMINDER_PARTITION_COUNT = 1;
 
 function serverTimestamp() {
   if (admin && admin.firestore && admin.firestore.FieldValue && admin.firestore.FieldValue.serverTimestamp) {
@@ -37,6 +38,33 @@ function parseRatio(value, fallback) {
   return parsed;
 }
 
+function parsePartitionSlot(value, partitionCount, fallback) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed >= partitionCount) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function stableStringHash(value) {
+  const stringValue = String(value || '');
+  let hash = 0;
+
+  for (let i = 0; i < stringValue.length; i += 1) {
+    hash = (hash + stringValue.charCodeAt(i)) % 2147483647;
+  }
+
+  return hash;
+}
+
+function shouldProcessHabitInPartition(habitId, partitionCount, partitionSlot) {
+  if (partitionCount <= 1) {
+    return true;
+  }
+
+  return stableStringHash(habitId) % partitionCount === partitionSlot;
+}
+
 function shiftDateStringUtc(dateString, daysDelta) {
   if (!VALIDATORS.isValidDateString(dateString)) {
     return null;
@@ -53,16 +81,6 @@ function shiftDateStringUtc(dateString, daysDelta) {
   const nextMonth = String(date.getUTCMonth() + 1).padStart(2, '0');
   const nextDay = String(date.getUTCDate()).padStart(2, '0');
   return `${nextYear}-${nextMonth}-${nextDay}`;
-}
-
-function minDateString(a, b) {
-  if (!a) {
-    return b;
-  }
-  if (!b) {
-    return a;
-  }
-  return a <= b ? a : b;
 }
 
 async function fetchLogsForStreakWindow(dbClient, habitId, userId, startDateString, endDateString) {
@@ -222,15 +240,19 @@ async function onHabitLogWriteHandler(event, deps = {}) {
   const rawAffectedDateString = VALIDATORS.isValidDateString(log.dateString)
     ? log.dateString
     : todayDateString;
-  const earliestAnchorDateString = minDateString(rawAffectedDateString, todayDateString);
   const streakRecalcWindowDays = parsePositiveInt(
     process.env.STREAK_RECALC_WINDOW_DAYS,
     DEFAULT_STREAK_RECALC_WINDOW_DAYS
   );
-  const windowStartDateString = shiftDateStringUtc(
-    earliestAnchorDateString,
+  const boundedWindowFloor = shiftDateStringUtc(todayDateString, -(streakRecalcWindowDays - 1));
+  const candidateWindowStart = shiftDateStringUtc(
+    rawAffectedDateString,
     -(streakRecalcWindowDays - 1)
   );
+  const windowStartDateString =
+    !candidateWindowStart || candidateWindowStart < boundedWindowFloor
+      ? boundedWindowFloor
+      : candidateWindowStart;
 
   const logs = await fetchLogsForStreakWindow(
     dbClient,
@@ -280,6 +302,16 @@ async function reminderSchedulerHandler(_event, deps = {}) {
     process.env.REMINDER_CONCURRENCY,
     DEFAULT_REMINDER_CONCURRENCY
   );
+  const partitionCount = parsePositiveInt(
+    process.env.REMINDER_PARTITION_COUNT,
+    DEFAULT_REMINDER_PARTITION_COUNT
+  );
+  const fallbackPartitionSlot = new Date(nowIso).getUTCMinutes() % partitionCount;
+  const partitionSlot = parsePartitionSlot(
+    process.env.REMINDER_PARTITION_SLOT,
+    partitionCount,
+    fallbackPartitionSlot
+  );
   const warnUsageRatio = parseRatio(
     process.env.REMINDER_WARN_USAGE_RATIO,
     DEFAULT_REMINDER_WARN_USAGE_RATIO
@@ -314,13 +346,17 @@ async function reminderSchedulerHandler(_event, deps = {}) {
       while (index < habits.length && processedHabits < maxHabitsPerRun) {
         const currentIndex = index;
         index += 1;
+        const habitDoc = habits[currentIndex];
+
+        if (!shouldProcessHabitInPartition(habitDoc && habitDoc.id, partitionCount, partitionSlot)) {
+          continue;
+        }
 
         if (processedHabits >= maxHabitsPerRun) {
           break;
         }
 
         processedHabits += 1;
-        const habitDoc = habits[currentIndex];
 
         try {
           const sent = await processReminderHabit({
@@ -368,6 +404,8 @@ async function reminderSchedulerHandler(_event, deps = {}) {
     pageSize,
     maxHabitsPerRun,
     reminderConcurrency,
+    partitionCount,
+    partitionSlot,
   });
 
   return {

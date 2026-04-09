@@ -14,7 +14,7 @@ function requireCallableAuth(request, options = {}) {
     throwHttpsError('failed-precondition', 'Email must be verified.');
   }
 
-  if (requireTotp && token.totpVerified !== true && token.mfaVerified !== true) {
+  if (requireTotp && token.totpVerified !== true) {
     throwHttpsError('permission-denied', 'TOTP verification is required.');
   }
 

@@ -47,6 +47,25 @@ describe('requireCallableAuth (US1)', () => {
     }
   });
 
+  test('throws when only generic mfa claim is present without totpVerified', () => {
+    const request = {
+      auth: {
+        uid: 'user-1',
+        token: {
+          email_verified: true,
+          mfaVerified: true,
+        },
+      },
+    };
+
+    expect(() => requireCallableAuth(request)).toThrow();
+    try {
+      requireCallableAuth(request);
+    } catch (error) {
+      expect(error.code).toBe('permission-denied');
+    }
+  });
+
   test('returns auth payload when requirements are met', () => {
     const request = {
       auth: {
