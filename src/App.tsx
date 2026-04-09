@@ -4,13 +4,14 @@ import { format, addDays, startOfWeek, isSameDay, startOfMonth, endOfMonth, each
 import confetti from 'canvas-confetti';
 import { 
   Sparkles, LayoutDashboard, BarChart2, CheckSquare, Folder, Flame, 
-  Moon, Settings, Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical
+  Moon, Settings, Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical, LogIn
 } from 'lucide-react';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ShaderBackground } from './components/ShaderBackground';
 import { StatisticsPage } from './components/StatisticsPage';
+import { AuthModal } from './components/AuthModal';
 
-const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void }) => (
+const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAuth }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onOpenAuth: () => void }) => (
   <aside className={`w-64 h-screen flex flex-col px-6 py-8 backdrop-blur-sm border-r transition-colors duration-500 ${isDarkMode ? 'bg-black/20 border-[#4A2C24]/30' : 'bg-white/10 border-[#EADCCF]/20'}`}>
     <div className={`flex items-center gap-2 mb-12 px-2 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
       <Sparkles className="w-6 h-6" />
@@ -30,16 +31,27 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab }: { isDar
         <ThemeToggle isDark={isDarkMode} setIsDark={setIsDarkMode} />
       </div>
 
-      <div className={`flex items-center gap-3 p-2 -mx-2 rounded-2xl transition-all duration-500 ${isDarkMode ? 'bg-[#2A2421]/80 border border-[#4A2C24]/50 shadow-lg' : 'border border-transparent hover:bg-[#E8DCD1]/30'}`}>
-        <div className="w-10 h-10 rounded-xl bg-[#D0705B]/20 flex items-center justify-center overflow-hidden">
-          <img src="https://picsum.photos/seed/alex/100/100" alt="Alex Morgan" className="w-full h-full object-cover opacity-90" referrerPolicy="no-referrer" />
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={onOpenAuth}
+        className={`flex items-center gap-3 w-full p-3 -mx-2 rounded-2xl transition-all duration-500 cursor-pointer group ${
+          isDarkMode
+            ? 'bg-[#D0705B]/15 border border-[#D0705B]/30 hover:bg-[#D0705B]/25 shadow-lg'
+            : 'bg-[#D0705B]/10 border border-[#D0705B]/20 hover:bg-[#D0705B]/20'
+        }`}
+      >
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+          isDarkMode ? 'bg-[#D0705B]/20' : 'bg-[#D0705B]/15'
+        }`}>
+          <LogIn className="w-5 h-5 text-[#D0705B]" />
         </div>
-        <div className="flex-1">
-          <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Alex Morgan</p>
-          <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>Pro Member</p>
+        <div className="flex-1 text-left">
+          <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Sign In</p>
+          <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>Login or Register</p>
         </div>
-        <Settings className={`w-4 h-4 cursor-pointer hover:rotate-90 transition-all duration-300 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`} />
-      </div>
+        <ChevronRight className={`w-4 h-4 transition-all duration-300 group-hover:translate-x-0.5 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`} />
+      </motion.button>
     </div>
   </aside>
 );
@@ -428,11 +440,12 @@ const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('Dashboard');
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   return (
     <ShaderBackground isDarkMode={isDarkMode}>
       <div className={`flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} activeTab={activeTab} setActiveTab={setActiveTab} onOpenAuth={() => setIsAuthOpen(true)} />
         {activeTab === 'Dashboard' ? (
           <MainContent isDarkMode={isDarkMode} />
         ) : activeTab === 'Statistics' ? (
@@ -441,6 +454,7 @@ export default function App() {
           <MainContent isDarkMode={isDarkMode} />
         )}
       </div>
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} isDarkMode={isDarkMode} />
     </ShaderBackground>
   );
 }
