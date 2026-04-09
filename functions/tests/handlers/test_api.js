@@ -337,4 +337,73 @@ describe('API handlers', () => {
       code: 'permission-denied',
     });
   });
+
+  test('syncHabitLogsHandler rejects non-boolean completed values', async () => {
+    const db = createDbMock({
+      users: {
+        'user-1': { timezone: 'UTC' },
+      },
+      habits: {
+        'habit-1': { userId: 'user-1' },
+      },
+    });
+
+    const request = {
+      auth: {
+        uid: 'user-1',
+        token: {
+          email_verified: true,
+          totpVerified: true,
+        },
+      },
+      data: {
+        logs: [
+          {
+            habitId: 'habit-1',
+            dateString: '2026-04-09',
+            completed: 'false',
+            timestamp: '2026-04-09T10:00:00.000Z',
+          },
+        ],
+      },
+    };
+
+    await expect(syncHabitLogsHandler(request, { db })).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+  });
+
+  test('syncHabitLogsHandler rejects impossible calendar dates', async () => {
+    const db = createDbMock({
+      users: {
+        'user-1': { timezone: 'UTC' },
+      },
+      habits: {
+        'habit-1': { userId: 'user-1' },
+      },
+    });
+
+    const request = {
+      auth: {
+        uid: 'user-1',
+        token: {
+          email_verified: true,
+          totpVerified: true,
+        },
+      },
+      data: {
+        logs: [
+          {
+            habitId: 'habit-1',
+            dateString: '2026-02-30',
+            completed: true,
+          },
+        ],
+      },
+    };
+
+    await expect(syncHabitLogsHandler(request, { db })).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+  });
 });

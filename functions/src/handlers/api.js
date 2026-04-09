@@ -43,6 +43,14 @@ function validateSyncLogEntry(entry) {
     throwHttpsError('invalid-argument', 'Each log must include habitId and dateString (YYYY-MM-DD).');
   }
 
+  if (typeof entry.completed !== 'boolean') {
+    throwHttpsError('invalid-argument', 'Each log must include completed as a boolean value.');
+  }
+
+  if (entry.timestamp !== undefined && entry.timestamp !== null && typeof entry.timestamp !== 'string') {
+    throwHttpsError('invalid-argument', 'timestamp must be a valid ISO-8601 date string.');
+  }
+
   if (entry.timestamp && Number.isNaN(new Date(entry.timestamp).getTime())) {
     throwHttpsError('invalid-argument', 'timestamp must be a valid ISO-8601 date string.');
   }
@@ -206,7 +214,17 @@ async function syncHabitLogsHandler(request, deps = {}) {
       typeof entry.timestamp === 'string'
         ? entry.timestamp
         : `${entry.dateString}T12:00:00.000Z`;
-    const logicalDay = getLogicalDay(sourceIso, timezone);
+    let logicalDay;
+    try {
+      logicalDay = getLogicalDay(sourceIso, timezone);
+    } catch (_error) {
+      throwHttpsError('invalid-argument', 'Unable to determine logical day from provided log date/time.');
+    }
+
+    if (!VALIDATORS.isValidDateString(logicalDay)) {
+      throwHttpsError('invalid-argument', 'Unable to determine logical day from provided log date/time.');
+    }
+
     const documentId = `${uid}_${entry.habitId}_${logicalDay}`;
     const reference = dbClient.collection(COLLECTIONS.HABIT_LOGS).doc(documentId);
 
@@ -217,7 +235,7 @@ async function syncHabitLogsHandler(request, deps = {}) {
           habitId: entry.habitId,
           userId: uid,
           dateString: logicalDay,
-          completed: Boolean(entry.completed),
+          completed: entry.completed,
           timestamp: entry.timestamp || new Date().toISOString(),
         },
         currentDoc.exists ? currentDoc.data() : {}

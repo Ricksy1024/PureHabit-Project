@@ -2,11 +2,17 @@ const { onUserCreated } = require('firebase-functions/v2/identity');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { admin, db } = require('./db');
-const { COLLECTIONS, FREQUENCY_TYPES } = require('../core/models');
+const { COLLECTIONS, FREQUENCY_TYPES, VALIDATORS } = require('../core/models');
 const { calculateStreaks } = require('../core/streaks');
 const { getLogicalDay, normalizeTimezone } = require('../core/date');
 const { shouldSendReminder } = require('../core/reminders');
 const { sendHabitReminder } = require('./notifications');
+
+const DEFAULT_STREAK_RECALC_WINDOW_DAYS = 730;
+const DEFAULT_REMINDER_PAGE_SIZE = 100;
+const DEFAULT_REMINDER_MAX_HABITS_PER_RUN = 1000;
+const DEFAULT_REMINDER_CONCURRENCY = 20;
+const DEFAULT_REMINDER_WARN_USAGE_RATIO = 0.8;
 
 function serverTimestamp() {
   if (admin && admin.firestore && admin.firestore.FieldValue && admin.firestore.FieldValue.serverTimestamp) {
@@ -15,15 +21,142 @@ function serverTimestamp() {
   return new Date();
 }
 
+function parsePositiveInt(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function parseRatio(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function shiftDateStringUtc(dateString, daysDelta) {
+  if (!VALIDATORS.isValidDateString(dateString)) {
+    return null;
+  }
+
+  const [yearString, monthString, dayString] = dateString.split('-');
+  const year = Number(yearString);
+  const month = Number(monthString);
+  const day = Number(dayString);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + Number(daysDelta || 0));
+
+  const nextYear = date.getUTCFullYear();
+  const nextMonth = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const nextDay = String(date.getUTCDate()).padStart(2, '0');
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
+function minDateString(a, b) {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  return a <= b ? a : b;
+}
+
+async function fetchLogsForStreakWindow(dbClient, habitId, userId, startDateString, endDateString) {
+  let query = dbClient
+    .collection(COLLECTIONS.HABIT_LOGS)
+    .where('habitId', '==', habitId)
+    .where('userId', '==', userId);
+
+  if (VALIDATORS.isValidDateString(startDateString)) {
+    query = query.where('dateString', '>=', startDateString);
+  }
+
+  if (VALIDATORS.isValidDateString(endDateString)) {
+    query = query.where('dateString', '<=', endDateString);
+  }
+
+  const logsSnapshot = await query.get();
+  return (logsSnapshot.docs || []).map((doc) => doc.data());
+}
+
+async function processReminderHabit(params) {
+  const {
+    dbClient,
+    messagingClient,
+    userCache,
+    nowIso,
+    habitDoc,
+  } = params;
+
+  const habit = habitDoc.data() || {};
+  const habitId = habitDoc.id;
+  const userId = habit.userId;
+
+  if (!userId) {
+    return false;
+  }
+
+  const user = await getUserDataCached(dbClient, userId, userCache);
+  if (!user) {
+    return false;
+  }
+
+  const timezone = normalizeTimezone(user.timezone, 'UTC');
+  const logicalDay = getLogicalDay(nowIso, timezone);
+  const logDocId = `${userId}_${habitId}_${logicalDay}`;
+  const logSnapshot = await dbClient.collection(COLLECTIONS.HABIT_LOGS).doc(logDocId).get();
+
+  const completionByDate = {
+    [logicalDay]: logSnapshot.exists ? Boolean((logSnapshot.data() || {}).completed) : false,
+  };
+
+  const due = shouldSendReminder({
+    habit,
+    nowIso,
+    timezone,
+    completionByDate,
+  });
+
+  if (!due) {
+    return false;
+  }
+
+  const sendResult = await sendHabitReminder({
+    messagingClient,
+    deviceToken: user.pushToken,
+    userId,
+    habitId,
+    habitName: habit.name,
+  });
+
+  return Boolean(sendResult && sendResult.success);
+}
+
 async function getUserDataCached(dbClient, userId, userCache) {
   if (userCache.has(userId)) {
     return userCache.get(userId);
   }
 
-  const snapshot = await dbClient.collection(COLLECTIONS.USERS).doc(userId).get();
-  const userData = snapshot.exists ? snapshot.data() || {} : null;
-  userCache.set(userId, userData);
-  return userData;
+  const pending = dbClient
+    .collection(COLLECTIONS.USERS)
+    .doc(userId)
+    .get()
+    .then((snapshot) => (snapshot.exists ? snapshot.data() || {} : null));
+
+  userCache.set(userId, pending);
+
+  try {
+    const userData = await pending;
+    userCache.set(userId, userData);
+    return userData;
+  } catch (error) {
+    userCache.delete(userId);
+    throw error;
+  }
 }
 
 async function onUserCreateHandler(event, deps = {}) {
@@ -78,26 +211,47 @@ async function onHabitLogWriteHandler(event, deps = {}) {
     days: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
   };
 
-  const logsSnapshot = await dbClient
-    .collection(COLLECTIONS.HABIT_LOGS)
-    .where('habitId', '==', habitId)
-    .where('userId', '==', userId)
-    .get();
-
-  const logs = (logsSnapshot.docs || []).map((doc) => doc.data());
   const statusRef = dbClient.collection(COLLECTIONS.STREAK_STATUS).doc(habitId);
   const existingStatus = await statusRef.get();
   const previousLongest = existingStatus.exists
     ? Number((existingStatus.data() || {}).longestStreak || 0)
     : 0;
 
-  const todayDateString = getLogicalDay(new Date().toISOString(), timezone);
+  const nowIso = new Date().toISOString();
+  const todayDateString = getLogicalDay(nowIso, timezone);
+  const rawAffectedDateString = VALIDATORS.isValidDateString(log.dateString)
+    ? log.dateString
+    : todayDateString;
+  const earliestAnchorDateString = minDateString(rawAffectedDateString, todayDateString);
+  const streakRecalcWindowDays = parsePositiveInt(
+    process.env.STREAK_RECALC_WINDOW_DAYS,
+    DEFAULT_STREAK_RECALC_WINDOW_DAYS
+  );
+  const windowStartDateString = shiftDateStringUtc(
+    earliestAnchorDateString,
+    -(streakRecalcWindowDays - 1)
+  );
+
+  const logs = await fetchLogsForStreakWindow(
+    dbClient,
+    habitId,
+    userId,
+    windowStartDateString,
+    todayDateString
+  );
+
   const streaks = calculateStreaks({
     logs,
     frequency,
     previousLongest,
     todayDateString,
   });
+
+  if (streaks.currentStreak >= streakRecalcWindowDays) {
+    console.warn(
+      `Streak recalculation hit configured window for habit ${habitId}. Consider increasing STREAK_RECALC_WINDOW_DAYS.`
+    );
+  }
 
   await statusRef.set(
     {
@@ -117,8 +271,21 @@ async function reminderSchedulerHandler(_event, deps = {}) {
   const messagingClient = deps.messaging || admin.messaging();
   const nowIso = new Date().toISOString();
 
-  const pageSize = Math.max(1, Number(process.env.REMINDER_PAGE_SIZE) || 200);
-  const maxHabitsPerRun = Math.max(pageSize, Number(process.env.REMINDER_MAX_HABITS_PER_RUN) || 2000);
+  const pageSize = parsePositiveInt(process.env.REMINDER_PAGE_SIZE, DEFAULT_REMINDER_PAGE_SIZE);
+  const maxHabitsPerRun = Math.max(
+    pageSize,
+    parsePositiveInt(process.env.REMINDER_MAX_HABITS_PER_RUN, DEFAULT_REMINDER_MAX_HABITS_PER_RUN)
+  );
+  const reminderConcurrency = parsePositiveInt(
+    process.env.REMINDER_CONCURRENCY,
+    DEFAULT_REMINDER_CONCURRENCY
+  );
+  const warnUsageRatio = parseRatio(
+    process.env.REMINDER_WARN_USAGE_RATIO,
+    DEFAULT_REMINDER_WARN_USAGE_RATIO
+  );
+  const warnThreshold = Math.max(pageSize, Math.floor(maxHabitsPerRun * warnUsageRatio));
+
   const userCache = new Map();
   let lastDoc = null;
   let processedHabits = 0;
@@ -141,57 +308,42 @@ async function reminderSchedulerHandler(_event, deps = {}) {
       break;
     }
 
-    for (const habitDoc of habits) {
-      if (processedHabits >= maxHabitsPerRun) {
-        break;
+    let index = 0;
+    const workerCount = Math.max(1, Math.min(reminderConcurrency, habits.length));
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (index < habits.length && processedHabits < maxHabitsPerRun) {
+        const currentIndex = index;
+        index += 1;
+
+        if (processedHabits >= maxHabitsPerRun) {
+          break;
+        }
+
+        processedHabits += 1;
+        const habitDoc = habits[currentIndex];
+
+        try {
+          const sent = await processReminderHabit({
+            dbClient,
+            messagingClient,
+            userCache,
+            nowIso,
+            habitDoc,
+          });
+
+          if (sent) {
+            remindersSent += 1;
+          }
+        } catch (error) {
+          console.error('Failed to process habit reminder', {
+            habitId: habitDoc && habitDoc.id,
+            error: error && error.message,
+          });
+        }
       }
+    });
 
-      processedHabits += 1;
-      const habit = habitDoc.data() || {};
-      const habitId = habitDoc.id;
-      const userId = habit.userId;
-
-      if (!userId) {
-        continue;
-      }
-
-      const user = await getUserDataCached(dbClient, userId, userCache);
-      if (!user) {
-        continue;
-      }
-
-      const timezone = normalizeTimezone(user.timezone, 'UTC');
-      const logicalDay = getLogicalDay(nowIso, timezone);
-      const logDocId = `${userId}_${habitId}_${logicalDay}`;
-      const logSnapshot = await dbClient.collection(COLLECTIONS.HABIT_LOGS).doc(logDocId).get();
-
-      const completionByDate = {
-        [logicalDay]: logSnapshot.exists ? Boolean((logSnapshot.data() || {}).completed) : false,
-      };
-
-      const due = shouldSendReminder({
-        habit,
-        nowIso,
-        timezone,
-        completionByDate,
-      });
-
-      if (!due) {
-        continue;
-      }
-
-      const sendResult = await sendHabitReminder({
-        messagingClient,
-        deviceToken: user.pushToken,
-        userId,
-        habitId,
-        habitName: habit.name,
-      });
-
-      if (sendResult && sendResult.success) {
-        remindersSent += 1;
-      }
-    }
+    await Promise.all(workers);
 
     if (habits.length < pageSize) {
       break;
@@ -199,6 +351,24 @@ async function reminderSchedulerHandler(_event, deps = {}) {
 
     lastDoc = habits[habits.length - 1];
   }
+
+  if (processedHabits >= warnThreshold) {
+    console.warn(
+      `Reminder scheduler processed ${processedHabits}/${maxHabitsPerRun} habits. Consider tuning REMINDER_MAX_HABITS_PER_RUN.`
+    );
+  }
+
+  if (processedHabits >= maxHabitsPerRun) {
+    console.warn('Reminder scheduler reached max habits per run and stopped early.');
+  }
+
+  console.info('Reminder scheduler run summary', {
+    processedHabits,
+    remindersSent,
+    pageSize,
+    maxHabitsPerRun,
+    reminderConcurrency,
+  });
 
   return {
     processedHabits,

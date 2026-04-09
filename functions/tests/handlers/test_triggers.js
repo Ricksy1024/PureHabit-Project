@@ -61,14 +61,41 @@ function createTriggersDbMock(seed = {}) {
     };
   }
 
+  function matchesFilter(log, field, op, expected) {
+    const actual = log[field];
+
+    if (op === '==') {
+      return actual === expected;
+    }
+
+    if (op === '>=') {
+      return actual >= expected;
+    }
+
+    if (op === '<=') {
+      return actual <= expected;
+    }
+
+    return false;
+  }
+
   function getHabitLogsFilter(filters) {
     const docs = [...store.habit_logs.values()]
-      .filter((log) => filters.every(([field, expected]) => log[field] === expected))
+      .filter((log) => filters.every(([field, op, expected]) => matchesFilter(log, field, op, expected)))
       .map((log) => ({
         data: () => cloneValue(log),
       }));
 
     return { docs };
+  }
+
+  function createWhereChain(filters) {
+    return {
+      where: jest.fn((nextField, nextOp, nextValue) =>
+        createWhereChain([...filters, [nextField, nextOp, nextValue]])
+      ),
+      get: jest.fn(async () => getHabitLogsFilter(filters)),
+    };
   }
 
   const db = {
@@ -100,18 +127,7 @@ function createTriggersDbMock(seed = {}) {
           doc: jest.fn((id) => ({
             get: jest.fn(async () => createDocSnapshot(store.habit_logs, id)),
           })),
-          where: jest.fn((field, _op, value) => {
-            const filters = [[field, value]];
-            return {
-              where: jest.fn((nextField, _nextOp, nextValue) => {
-                filters.push([nextField, nextValue]);
-                return {
-                  get: jest.fn(async () => getHabitLogsFilter(filters)),
-                };
-              }),
-              get: jest.fn(async () => getHabitLogsFilter(filters)),
-            };
-          }),
+          where: jest.fn((field, op, value) => createWhereChain([[field, op, value]])),
         };
       }
 
@@ -264,5 +280,59 @@ describe('trigger handlers', () => {
     expect(messaging.send).not.toHaveBeenCalled();
 
     jest.useRealTimers();
+  });
+
+  test('reminderSchedulerHandler enforces configured max habits per run', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(Date.parse('2026-04-10T03:00:00.000Z'));
+
+    const previousMax = process.env.REMINDER_MAX_HABITS_PER_RUN;
+    const previousPageSize = process.env.REMINDER_PAGE_SIZE;
+    process.env.REMINDER_MAX_HABITS_PER_RUN = '1';
+    process.env.REMINDER_PAGE_SIZE = '1';
+
+    const db = createTriggersDbMock({
+      users: {
+        'user-1': { timezone: 'America/Los_Angeles', pushToken: 'push-token-1' },
+      },
+      habits: {
+        'habit-1': {
+          userId: 'user-1',
+          archived: false,
+          name: 'Read',
+          reminders: [{ time: '20:00' }],
+        },
+        'habit-2': {
+          userId: 'user-1',
+          archived: false,
+          name: 'Walk',
+          reminders: [{ time: '20:00' }],
+        },
+      },
+    });
+
+    const messaging = {
+      send: jest.fn().mockResolvedValue('ok'),
+    };
+
+    try {
+      const result = await reminderSchedulerHandler({}, { db, messaging });
+      expect(result.processedHabits).toBe(1);
+      expect(result.remindersSent).toBe(1);
+    } finally {
+      if (previousMax === undefined) {
+        delete process.env.REMINDER_MAX_HABITS_PER_RUN;
+      } else {
+        process.env.REMINDER_MAX_HABITS_PER_RUN = previousMax;
+      }
+
+      if (previousPageSize === undefined) {
+        delete process.env.REMINDER_PAGE_SIZE;
+      } else {
+        process.env.REMINDER_PAGE_SIZE = previousPageSize;
+      }
+
+      jest.useRealTimers();
+    }
   });
 });

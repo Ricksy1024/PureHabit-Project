@@ -30,9 +30,31 @@ const TOTP_CONFIG = {
 // Grace period: logical "day" ends at 3:00 AM local time
 const GRACE_PERIOD_HOUR = 3;
 
+function isValidDateString(str) {
+  if (typeof str !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return false;
+  }
+
+  const [yearString, monthString, dayString] = str.split('-');
+  const year = Number(yearString);
+  const month = Number(monthString);
+  const day = Number(dayString);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return false;
+  }
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() + 1 === month &&
+    date.getUTCDate() === day
+  );
+}
+
 // Validation helpers (pure, no side effects)
 const VALIDATORS = {
-  isValidDateString: (str) => /^\d{4}-\d{2}-\d{2}$/.test(str),
+  isValidDateString,
   isValidTOTPToken: (token) => /^\d{6}$/.test(token),
   isValidDays: (days) =>
     Array.isArray(days) &&
