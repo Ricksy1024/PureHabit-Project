@@ -9,10 +9,10 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Initialize Node.js `firebase-functions` project with `firebase init functions` and `firestore` (set up inside `/functions`)
-- [ ] T002 Install standard dependencies (`firebase-admin`, `firebase-functions`, `otplib`) and dev dependencies (`jest`) in `/functions` directory
-- [ ] T003 [P] Create decoupled src folder structure: `functions/src/core/`, `functions/src/handlers/`, and `functions/tests/core/`
-- [ ] T004 [P] Configure Jest testing environment in `functions/package.json`
+- [x] T001 Initialize Node.js `firebase-functions` project with `firebase init functions` and `firestore` (set up inside `/functions`)
+- [x] T002 Install standard dependencies (`firebase-admin`, `firebase-functions`, `otplib`) and dev dependencies (`jest`) in `/functions` directory
+- [x] T003 [P] Create decoupled src folder structure: `functions/src/core/`, `functions/src/handlers/`, and `functions/tests/core/`
+- [x] T004 [P] Configure Jest testing environment in `functions/package.json`
 
 ---
 
