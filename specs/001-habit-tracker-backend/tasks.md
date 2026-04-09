@@ -20,9 +20,9 @@
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
-- [ ] T005 [P] Create database context/admin helper singleton in `functions/src/handlers/db.js`
-- [ ] T006 [P] Build a reusable HTTP error responder for callables in `functions/src/handlers/errors.js`
-- [ ] T007 Define shared data types, validation constants, and collection name keys in `functions/src/core/models.js`
+- [x] T005 [P] Create database context/admin helper singleton in `functions/src/handlers/db.js`
+- [x] T006 [P] Build a reusable HTTP error responder for callables in `functions/src/handlers/errors.js`
+- [x] T007 Define shared data types, validation constants, and collection name keys in `functions/src/core/models.js`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
