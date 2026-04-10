@@ -85,15 +85,15 @@ An authenticated user sees immediate UI state changes when their authentication 
 - **FR-004**: System MUST present actionable failure messages for authentication failures without exposing sensitive internals.
 - **FR-005**: System MUST preserve authenticated session continuity across full page reloads in the same browser session whenever the Firebase Auth session is still valid, and MUST restore the corresponding authenticated or unauthenticated UI state without requiring credential re-entry.
 - **FR-006**: System MUST update visible authentication UI state in near real time when account/session state changes.
-- **FR-007**: System MUST enforce existing backend security prerequisites before allowing protected operations.
-- **FR-008**: System MUST guide users through required post-registration security steps before marking account setup complete.
+- **FR-007**: System MUST enforce existing backend-defined security prerequisites for every protected operation and block execution until prerequisites are satisfied (including users who already have an authenticated session).
+- **FR-008**: System MUST require newly registered users to complete required post-registration security steps before marking account setup complete (see FR-015 for ongoing remediation guidance while gated).
 - **FR-009**: System MUST prevent unauthenticated access to authenticated-only user actions and views.
 - **FR-010**: System MUST support user-initiated sign-out and immediately revoke access to authenticated-only UI features.
-- **FR-011**: System MUST preserve user-entered form data through recoverable transient errors unless the user explicitly resets or closes the flow.
+- **FR-011**: System MUST preserve user-entered auth form data and in-progress onboarding state through recoverable transient errors and auth modal close/reopen actions, unless the user explicitly invokes a reset action.
 - **FR-012**: System MUST surface account-state conflicts (for example deleted account or invalid session) and transition users to a safe unauthenticated state.
 - **FR-013**: System MUST scope this release to email/password authentication only and keep Google OAuth sign-in non-operational in this release.
-- **FR-014**: System MUST allow authenticated session creation before verification completion, but MUST block protected operations until both email verification and TOTP are complete.
-- **FR-015**: System MUST present clear guided next steps for users who are signed in but blocked by incomplete email verification or TOTP setup.
+- **FR-014**: System MUST allow authenticated session creation before verification completion and place the user into a gated authenticated state until both email verification and TOTP are complete (see FR-007 for protected-operation enforcement).
+- **FR-015**: System MUST present clear guided remediation steps for any signed-in user in the gated authenticated state caused by incomplete email verification or TOTP setup, including returning users and newly registered users (see FR-008 for new-account completion criteria).
 - **FR-016**: System MUST apply a client-session sign-in cooldown after 5 failed attempts in 15 minutes by disabling sign-in submit for 15 minutes and displaying a clear recovery message.
 - **FR-017**: System MUST provide a functional "Forgot Password" flow on the Sign In view that triggers Firebase `sendPasswordResetEmail` and displays a confirmation toast upon successful submission, without leaving the auth modal.
 - **FR-018**: When a sign-in, sign-up, or related auth network request fails, the system MUST display an inline connectivity-specific error in the active auth form and MUST preserve the current form inputs and onboarding step state so the user can retry immediately.
