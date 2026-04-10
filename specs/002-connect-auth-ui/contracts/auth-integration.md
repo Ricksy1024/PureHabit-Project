@@ -12,15 +12,16 @@ This feature does not define new backend APIs. It documents the **client-side in
 **Trigger**: User submits Sign In form  
 **Precondition**: User is unauthenticated, cooldown not active  
 **Success**: Returns `UserCredential` with `user.uid`, `user.email`, `user.emailVerified`  
+**Client guard behavior**: After 5 failed sign-in attempts within 15 minutes, client disables Sign In submit for 15 minutes (session-local cooldown) and surfaces recovery messaging.
 **Errors**:
 
-| Firebase Error Code | User-Facing Message |
-|---|---|
-| `auth/user-not-found` | "No account found with this email." |
-| `auth/wrong-password` | "Incorrect password. Try again or reset your password." |
-| `auth/invalid-email` | "Please enter a valid email address." |
-| `auth/user-disabled` | "This account has been disabled." |
-| `auth/too-many-requests` | "Too many attempts. Please wait and try again." |
+| Firebase Error Code           | User-Facing Message                                       |
+| ----------------------------- | --------------------------------------------------------- |
+| `auth/user-not-found`         | "No account found with this email."                       |
+| `auth/wrong-password`         | "Incorrect password. Try again or reset your password."   |
+| `auth/invalid-email`          | "Please enter a valid email address."                     |
+| `auth/user-disabled`          | "This account has been disabled."                         |
+| `auth/too-many-requests`      | "Too many attempts. Please wait and try again."           |
 | `auth/network-request-failed` | "Unable to connect. Check your connection and try again." |
 
 ### `createUserWithEmailAndPassword(auth, email, password)`
@@ -30,11 +31,11 @@ This feature does not define new backend APIs. It documents the **client-side in
 **Success**: Returns `UserCredential`, triggers `onUserCreate` Cloud Function which creates `users` doc  
 **Errors**:
 
-| Firebase Error Code | User-Facing Message |
-|---|---|
-| `auth/email-already-in-use` | "An account already exists with this email." |
-| `auth/weak-password` | "Password must be at least 6 characters." |
-| `auth/invalid-email` | "Please enter a valid email address." |
+| Firebase Error Code           | User-Facing Message                                       |
+| ----------------------------- | --------------------------------------------------------- |
+| `auth/email-already-in-use`   | "An account already exists with this email."              |
+| `auth/weak-password`          | "Password must be at least 6 characters."                 |
+| `auth/invalid-email`          | "Please enter a valid email address."                     |
 | `auth/network-request-failed` | "Unable to connect. Check your connection and try again." |
 
 ### `sendPasswordResetEmail(auth, email)`
@@ -42,21 +43,31 @@ This feature does not define new backend APIs. It documents the **client-side in
 **Trigger**: User clicks "Forgot?" link on Sign In form  
 **Precondition**: User is on Sign In tab  
 **Success**: Shows confirmation toast regardless of whether email exists (prevents enumeration per edge case spec)  
-**Errors**: Network failures only — all other errors silently show the same success message  
+**Errors**: Network failures surface inline connectivity error; non-network account-existence outcomes keep identical confirmation messaging.
 
-### `onAuthStateChanged(auth, callback)`
+### `onIdTokenChanged(auth, callback)`
 
-**Trigger**: App initialization, sign-in, sign-out, token refresh, external state changes  
+**Trigger**: App initialization, sign-in, sign-out, token refresh, and periodic forced refresh for pending verification/profile-loading states  
 **Callback payload**: `User | null`  
-**Behavior**: 
+**Behavior**:
+
 - Called with `null` → set state to `unauthenticated`
 - Called with `User` → check `emailVerified` and `getIdTokenResult().claims.totpVerified` to determine `authenticated_pending` vs `authenticated_ready`
 - Real-time: detects external verification completion (FR-019), session invalidation (FR-012)
+- Stale callback protection: sequence-guarded state hydration prevents outdated async updates from overwriting newer state
 
 ### `signOut(auth)`
 
 **Trigger**: User clicks sign-out button  
-**Postcondition**: `onAuthStateChanged` fires with `null`, UI transitions to unauthenticated  
+**Postcondition**: `onIdTokenChanged` fires with `null`, UI transitions to unauthenticated
+
+## Client-Side UI Guard Contract
+
+- Unauthenticated sessions are explicitly blocked from authenticated-only content/routes/actions.
+- Authenticated but not fully verified sessions (`authenticated_pending`) are blocked from protected actions until email verification and TOTP verification are complete.
+- Gated sessions receive guided remediation copy in both app shell and auth modal.
+- Authenticated shell remains visible during profile read retries with inline `Profile loading...` placeholder.
+- Google OAuth UI action remains disabled for this release (email/password scope only).
 
 ## Firebase Callable Functions (Client → Cloud Functions)
 
@@ -67,7 +78,7 @@ All callable functions are invoked via `httpsCallable(functions, 'functionName')
 **When called**: After successful registration, during guided TOTP setup flow  
 **Request**: `{}` (empty — user identified by auth token)  
 **Response**: `{ success: true, secret: string, qrUri: string }`  
-**UI behavior**: Display QR code from `qrUri` for user to scan with authenticator app  
+**UI behavior**: Display QR code from `qrUri` for user to scan with authenticator app
 
 ### `verifyTOTP` (Post-Registration)
 
@@ -81,14 +92,14 @@ All callable functions are invoked via `httpsCallable(functions, 'functionName')
 **When called**: User-initiated account deletion (future UI, not in this release scope)  
 **Precondition**: `authenticated_ready` state required  
 **Request**: `{}` (empty)  
-**Response**: `{ success: true, message: string }`  
+**Response**: `{ success: true, message: string }`
 
 ### `syncHabitLogs` (Protected Operation)
 
 **When called**: Habit completion sync (existing feature, requires auth session)  
 **Precondition**: `authenticated_ready` state required  
 **Request**: `{ logs: Array<{ habitId, dateString, completed, timestamp }> }`  
-**Response**: `{ success: true, processedCount: number }`  
+**Response**: `{ success: true, processedCount: number }`
 
 ## Firestore Direct Reads (Client → Firestore)
 
@@ -99,4 +110,4 @@ All callable functions are invoked via `httpsCallable(functions, 'functionName')
 **Document**: `users/{uid}`  
 **Fields read**: `email`, `timezone`, `totp.enabled`  
 **Retry policy**: Max 3 attempts, exponential backoff (1s, 2s, 4s) per FR-020  
-**Failure behavior**: Show authenticated shell with "Profile loading…" placeholder  
+**Failure behavior**: Show authenticated shell with "Profile loading…" placeholder

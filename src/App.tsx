@@ -4,14 +4,17 @@ import { format, addDays, startOfWeek, isSameDay, startOfMonth, endOfMonth, each
 import confetti from 'canvas-confetti';
 import { 
   Sparkles, LayoutDashboard, BarChart2, CheckSquare, Folder, Flame, 
-  Moon, Settings, Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical, LogIn
+  Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical, LogIn, LogOut, ShieldAlert
 } from 'lucide-react';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ShaderBackground } from './components/ShaderBackground';
 import { StatisticsPage } from './components/StatisticsPage';
 import { AuthModal } from './components/AuthModal';
+import { useAuth } from './hooks/useAuth';
+import type { AuthState } from './types/auth';
+import { AUTH_COPY, VERIFICATION_STEP_COPY } from './constants/authCopy';
 
-const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAuth }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onOpenAuth: () => void }) => (
+const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAuthModal, onAuthAction, isAuthenticated }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onOpenAuthModal: () => void, onAuthAction: () => void, isAuthenticated: boolean }) => (
   <aside className={`w-64 h-screen flex flex-col px-6 py-8 backdrop-blur-sm border-r transition-colors duration-500 ${isDarkMode ? 'bg-black/20 border-[#4A2C24]/30' : 'bg-white/10 border-[#EADCCF]/20'}`}>
     <div className={`flex items-center gap-2 mb-12 px-2 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
       <Sparkles className="w-6 h-6" />
@@ -19,8 +22,8 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAut
     </div>
 
     <nav className="flex-1 space-y-1">
-      <NavItem icon={<LayoutDashboard />} label="Dashboard" active={activeTab === 'Dashboard'} onClick={() => setActiveTab('Dashboard')} isDarkMode={isDarkMode} />
-      <NavItem icon={<BarChart2 />} label="Statistics" active={activeTab === 'Statistics'} onClick={() => setActiveTab('Statistics')} isDarkMode={isDarkMode} />
+      <NavItem icon={<LayoutDashboard />} label="Dashboard" active={activeTab === 'Dashboard'} onClick={isAuthenticated ? () => setActiveTab('Dashboard') : onOpenAuthModal} isDarkMode={isDarkMode} />
+      <NavItem icon={<BarChart2 />} label="Statistics" active={activeTab === 'Statistics'} onClick={isAuthenticated ? () => setActiveTab('Statistics') : onOpenAuthModal} isDarkMode={isDarkMode} />
       <NavItem icon={<CheckSquare />} label="Habits" isDarkMode={isDarkMode} />
       <NavItem icon={<Folder />} label="Categories" isDarkMode={isDarkMode} />
       <NavItem icon={<Flame />} label="Streak" isDarkMode={isDarkMode} />
@@ -34,7 +37,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAut
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.97 }}
-        onClick={onOpenAuth}
+        onClick={onAuthAction}
         className={`flex items-center gap-3 w-full p-3 -mx-2 rounded-2xl transition-all duration-500 cursor-pointer group ${
           isDarkMode
             ? 'bg-[#D0705B]/15 border border-[#D0705B]/30 hover:bg-[#D0705B]/25 shadow-lg'
@@ -44,11 +47,15 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAut
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
           isDarkMode ? 'bg-[#D0705B]/20' : 'bg-[#D0705B]/15'
         }`}>
-          <LogIn className="w-5 h-5 text-[#D0705B]" />
+          {isAuthenticated ? (
+            <LogOut className="w-5 h-5 text-[#D0705B]" />
+          ) : (
+            <LogIn className="w-5 h-5 text-[#D0705B]" />
+          )}
         </div>
         <div className="flex-1 text-left">
-          <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Sign In</p>
-          <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>Login or Register</p>
+          <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>{isAuthenticated ? 'Sign Out' : 'Sign In'}</p>
+          <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>{isAuthenticated ? 'End current session' : 'Login or Register'}</p>
         </div>
         <ChevronRight className={`w-4 h-4 transition-all duration-300 group-hover:translate-x-0.5 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`} />
       </motion.button>
@@ -98,7 +105,7 @@ const ProgressSection = ({ progress, isDarkMode }: { progress: number, isDarkMod
     <span className={`text-sm font-medium whitespace-nowrap transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Today's Progress</span>
     <div className={`flex-1 h-5 backdrop-blur-sm rounded-full overflow-hidden inner-shadow relative transition-colors duration-500 ${isDarkMode ? 'bg-black/30' : 'bg-white/50'}`}>
       <motion.div 
-        className="absolute top-0 left-0 h-full bg-[#D0705B] rounded-full flex items-center justify-center min-w-[2.5rem]"
+        className="absolute top-0 left-0 h-full bg-[#D0705B] rounded-full flex items-center justify-center min-w-10"
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
         transition={{ duration: 0.8, ease: "easeOut" }}
@@ -337,7 +344,7 @@ const CategoriesWidget = ({ isDarkMode }: { isDarkMode: boolean }) => {
   );
 };
 
-const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
+const MainContent = ({ isDarkMode, showProfileLoading }: { isDarkMode: boolean, showProfileLoading: boolean }) => {
   const [range, setRange] = useState('Today');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewDate, setViewDate] = useState(new Date());
@@ -405,6 +412,11 @@ const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
   return (
     <main className="flex-1 p-8 overflow-y-auto z-10">
       <div className="max-w-5xl mx-auto">
+        {showProfileLoading && (
+          <div className={`mb-5 rounded-2xl px-4 py-3 text-sm font-medium transition-colors duration-500 ${isDarkMode ? 'bg-[#D0705B]/20 text-[#FDF8F3]' : 'bg-[#D0705B]/15 text-[#2A2421]'}`}>
+            {AUTH_COPY.shellProfileLoading}
+          </div>
+        )}
         <Header range={range} setRange={handleSetRange} currentDate={selectedDate} isDarkMode={isDarkMode} />
         
         <motion.div 
@@ -437,21 +449,150 @@ const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
   );
 };
 
+const AuthGatePanel = ({
+  authState,
+  isDarkMode,
+  onOpenAuth,
+  onRefresh,
+}: {
+  authState: AuthState;
+  isDarkMode: boolean;
+  onOpenAuth: () => void;
+  onRefresh: () => void;
+}) => {
+  const isPending = authState.status === 'authenticated_pending';
+  const missingSteps = isPending ? authState.security.missingSteps : [];
+
+  return (
+    <main className="flex-1 p-8 overflow-y-auto z-10">
+      <div className="max-w-3xl mx-auto">
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-3xl p-8 soft-shadow backdrop-blur-md transition-colors duration-500 ${
+            isDarkMode ? 'bg-[#2A2421]/75' : 'bg-[#FAF5F0]/80'
+          }`}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <ShieldAlert className={`w-6 h-6 ${isDarkMode ? 'text-[#D0705B]' : 'text-[#B85F4C]'}`} />
+            <h2 className={`font-serif text-3xl transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+              {isPending ? AUTH_COPY.gateTitlePending : AUTH_COPY.gateTitleSignIn}
+            </h2>
+          </div>
+
+          <p className={`text-sm leading-relaxed transition-colors duration-500 ${isDarkMode ? 'text-[#EADCCF]' : 'text-[#4A3E37]'}`}>
+            {isPending
+              ? AUTH_COPY.gateBodyPending
+              : AUTH_COPY.gateBodySignIn}
+          </p>
+
+          {isPending && (
+            <div className="mt-6 space-y-3">
+              {missingSteps.map((step) => (
+                <div
+                  key={step}
+                  className={`rounded-2xl border px-4 py-3 ${
+                    isDarkMode
+                      ? 'border-[#D0705B]/30 bg-[#D0705B]/10'
+                      : 'border-[#D0705B]/25 bg-[#D0705B]/10'
+                  }`}
+                >
+                  <p className={`text-sm font-semibold ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                    {VERIFICATION_STEP_COPY[step].title}
+                  </p>
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-[#EADCCF]' : 'text-[#4A3E37]'}`}>
+                    {VERIFICATION_STEP_COPY[step].body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {authState.message && (
+            <p className={`mt-5 text-sm ${isDarkMode ? 'text-[#F5C5BA]' : 'text-[#8C3B2B]'}`}>
+              {authState.message}
+            </p>
+          )}
+
+          <div className="mt-7 flex flex-wrap gap-3">
+            <button
+              onClick={onOpenAuth}
+              className="rounded-xl bg-[#D0705B] px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              {isPending ? AUTH_COPY.gateOpenAuthPending : AUTH_COPY.gateOpenAuthSignIn}
+            </button>
+            {isPending && (
+              <button
+                onClick={onRefresh}
+                className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${
+                  isDarkMode
+                    ? 'border border-[#A58876]/40 text-[#FDF8F3] hover:bg-[#4A2C24]/40'
+                    : 'border border-[#C9B7AA] text-[#2A2421] hover:bg-[#E8DCD1]/60'
+                }`}
+              >
+                {AUTH_COPY.gateRefreshStatus}
+              </button>
+            )}
+          </div>
+        </motion.section>
+      </div>
+    </main>
+  );
+};
+
 export default function App() {
+  const { authState, refreshAuthState, signOut } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
+  const isAuthenticated =
+    authState.status === 'authenticated_ready' ||
+    authState.status === 'authenticated_pending';
+  const isAuthorized = authState.status === 'authenticated_ready';
+
+  const handleAuthAction = () => {
+    if (isAuthenticated) {
+      void signOut();
+      return;
+    }
+
+    setIsAuthOpen(true);
+  };
+
+  const showProfileLoading =
+    authState.status === 'authenticated_ready' &&
+    authState.profileStatus === 'loading';
+
   return (
     <ShaderBackground isDarkMode={isDarkMode}>
       <div className={`flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} activeTab={activeTab} setActiveTab={setActiveTab} onOpenAuth={() => setIsAuthOpen(true)} />
-        {activeTab === 'Dashboard' ? (
-          <MainContent isDarkMode={isDarkMode} />
-        ) : activeTab === 'Statistics' ? (
-          <StatisticsPage isDarkMode={isDarkMode} />
+        <Sidebar
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onOpenAuthModal={() => setIsAuthOpen(true)}
+          onAuthAction={handleAuthAction}
+          isAuthenticated={isAuthenticated}
+        />
+        {isAuthorized ? (
+          activeTab === 'Dashboard' ? (
+            <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} />
+          ) : activeTab === 'Statistics' ? (
+            <StatisticsPage isDarkMode={isDarkMode} />
+          ) : (
+            <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} />
+          )
         ) : (
-          <MainContent isDarkMode={isDarkMode} />
+          <AuthGatePanel
+            authState={authState}
+            isDarkMode={isDarkMode}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onRefresh={() => {
+              void refreshAuthState(true);
+            }}
+          />
         )}
       </div>
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} isDarkMode={isDarkMode} />

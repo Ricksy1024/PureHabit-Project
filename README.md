@@ -16,5 +16,19 @@ View your app in AI Studio: https://ai.studio/apps/6f5cfc63-44c4-4542-ac5b-08618
 1. Install dependencies:
    `npm install`
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Copy [.env.example](.env.example) to `.env` and fill in Firebase `VITE_FIREBASE_*` values for your project.
 3. Run the app:
    `npm run dev`
+
+## Auth Integration Notes
+
+The auth modal is connected to Firebase email/password authentication.
+
+1. In Firebase Console, enable Authentication -> Sign-in method -> Email/Password.
+2. Deploy or emulate callable functions (`setupTOTP`, `verifyTOTP`) from the [functions](functions) package.
+3. Start the frontend:
+   `npm run dev`
+4. Open the app, click "Sign In", and use either:
+   - existing credentials to sign in, or
+   - "Sign Up" to create a new account.
+5. If the account is missing email verification or TOTP verification, the UI keeps the session in a gated state and guides remediation until protected actions unlock.
