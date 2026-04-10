@@ -83,7 +83,7 @@ An authenticated user sees immediate UI state changes when their authentication 
 - **FR-002**: System MUST let new users register from the existing UI authentication modal.
 - **FR-003**: System MUST provide clear, field-specific validation feedback for registration and sign-in input errors.
 - **FR-004**: System MUST present actionable failure messages for authentication failures without exposing sensitive internals.
-- **FR-005**: System MUST maintain authenticated session continuity across page reloads within a valid session lifetime.
+- **FR-005**: System MUST preserve authenticated session continuity across full page reloads in the same browser session whenever the Firebase Auth session is still valid, and MUST restore the corresponding authenticated or unauthenticated UI state without requiring credential re-entry.
 - **FR-006**: System MUST update visible authentication UI state in near real time when account/session state changes.
 - **FR-007**: System MUST enforce existing backend security prerequisites before allowing protected operations.
 - **FR-008**: System MUST guide users through required post-registration security steps before marking account setup complete.
@@ -96,7 +96,7 @@ An authenticated user sees immediate UI state changes when their authentication 
 - **FR-015**: System MUST present clear guided next steps for users who are signed in but blocked by incomplete email verification or TOTP setup.
 - **FR-016**: System MUST apply a client-session sign-in cooldown after 5 failed attempts in 15 minutes by disabling sign-in submit for 15 minutes and displaying a clear recovery message.
 - **FR-017**: System MUST provide a functional "Forgot Password" flow on the Sign In view that triggers Firebase `sendPasswordResetEmail` and displays a confirmation toast upon successful submission, without leaving the auth modal.
-- **FR-018**: System MUST display an inline error message within the auth form when a network request fails and MUST preserve all user-entered form data for manual retry without re-entry.
+- **FR-018**: When a sign-in, sign-up, or related auth network request fails, the system MUST display an inline connectivity-specific error in the active auth form and MUST preserve the current form inputs and onboarding step state so the user can retry immediately.
 - **FR-019**: System MUST auto-update the auth modal in-place when external verification or security status changes are detected via the real-time auth state listener, removing completed steps from the guided view and showing a success state when all prerequisites are fulfilled.
 - **FR-020**: System MUST show the authenticated UI shell when Firebase Auth succeeds even if the user profile document is temporarily unavailable, displaying an inline "Profile loading…" placeholder and auto-retrying profile fetch in the background (max 3 attempts with exponential backoff).
 
