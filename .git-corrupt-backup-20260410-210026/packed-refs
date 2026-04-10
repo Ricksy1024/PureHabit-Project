@@ -1,6 +1,0 @@
-# pack-refs with: peeled fully-peeled sorted 
-1c46b106cf4d452c15aa2139196c1d62c2f60f39 refs/remotes/origin/001-habit-tracker-backend
-c7814f6afe09787290995c90cb1083cae4ebd6de refs/remotes/origin/002-connect-auth-ui
-631228a58920f8911d2d24fd72b1819d34fd05b3 refs/remotes/origin/BackEnd
-5ef3bc41ab91e041a91adf533ae274ae665d11eb refs/remotes/origin/main
-5ef3bc41ab91e041a91adf533ae274ae665d11eb refs/remotes/origin/rego
