@@ -12,6 +12,10 @@
 - Q: Should this release include Google OAuth or only email/password auth? → A: Email/password only; Google OAuth is out of scope for this release.
 - Q: Should users get a session before email/TOTP completion? → A: Yes, create session but block protected operations until email verification and TOTP are complete, with guided next steps.
 - Q: How should repeated failed sign-in attempts be handled? → A: After 5 failed attempts in 15 minutes, show a cooldown message and disable sign-in submit for 15 minutes on that client session.
+- Q: Should the "Forgot Password" flow be functional or hidden in this release? → A: Functional — trigger Firebase sendPasswordResetEmail and show a confirmation toast. Low cost and prevents user lockout.
+- Q: What should happen when sign-in/sign-up is submitted but the network request fails? → A: Show inline form error ("Unable to connect. Check your connection and try again.") and preserve all entered form data for manual retry.
+- Q: What should happen when verification is completed externally while the auth modal is open? → A: Auto-update the modal in-place via the real-time auth state listener — remove completed steps from guidance, show success state if all steps are done.
+- Q: What should the UI do when auth succeeds but the user profile cannot be loaded? → A: Show authenticated shell with inline "Profile loading…" placeholder and auto-retry in background (max 3 attempts with backoff). Avoids blocking auth for transient Firestore hiccups.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -64,11 +68,12 @@ An authenticated user sees immediate UI state changes when their authentication 
 
 ### Edge Cases
 
-- What happens when a user submits the form while offline or with unstable connectivity?
+- What happens when a user submits the form while offline or with unstable connectivity? The system displays an inline error within the form and preserves all entered data so the user can retry without re-entering credentials.
 - How does the system handle repeated failed sign-in attempts within a short period? After 5 failed attempts in 15 minutes, the client enters a 15-minute submit cooldown with a clear recovery message.
-- How does the UI behave if the account is deleted while the user is still signed in on another device?
-- What happens when verification is completed externally after the auth modal is already open?
-- How does the system recover if authentication succeeds but user profile data is temporarily unavailable?
+- How does the UI behave if the account is deleted while the user is still signed in on another device? Per FR-012, the system surfaces the account-state conflict and transitions the user to a safe unauthenticated state.
+- What happens when verification is completed externally after the auth modal is already open? The modal auto-updates in-place via the real-time auth state listener, removing completed steps and showing success when all steps are done.
+- How does the system recover if authentication succeeds but user profile data is temporarily unavailable? The system shows the authenticated shell with an inline "Profile loading…" placeholder and auto-retries loading the profile in the background (max 3 attempts with exponential backoff).
+- What happens when a user submits a password reset request for an email that is not registered? The system shows the same confirmation message regardless to prevent email enumeration.
 
 ## Requirements _(mandatory)_
 
@@ -90,6 +95,10 @@ An authenticated user sees immediate UI state changes when their authentication 
 - **FR-014**: System MUST allow authenticated session creation before verification completion, but MUST block protected operations until both email verification and TOTP are complete.
 - **FR-015**: System MUST present clear guided next steps for users who are signed in but blocked by incomplete email verification or TOTP setup.
 - **FR-016**: System MUST apply a client-session sign-in cooldown after 5 failed attempts in 15 minutes by disabling sign-in submit for 15 minutes and displaying a clear recovery message.
+- **FR-017**: System MUST provide a functional "Forgot Password" flow on the Sign In view that triggers Firebase `sendPasswordResetEmail` and displays a confirmation toast upon successful submission, without leaving the auth modal.
+- **FR-018**: System MUST display an inline error message within the auth form when a network request fails and MUST preserve all user-entered form data for manual retry without re-entry.
+- **FR-019**: System MUST auto-update the auth modal in-place when external verification or security status changes are detected via the real-time auth state listener, removing completed steps from the guided view and showing a success state when all prerequisites are fulfilled.
+- **FR-020**: System MUST show the authenticated UI shell when Firebase Auth succeeds even if the user profile document is temporarily unavailable, displaying an inline "Profile loading…" placeholder and auto-retrying profile fetch in the background (max 3 attempts with exponential backoff).
 
 ### Constitution Constraints _(mandatory)_
 
