@@ -9,7 +9,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMode }) => {
-  const [activeTab, setActiveTab] = useState<'signup' | 'signin'>('signup');
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
 
   return (
     <AnimatePresence>
@@ -39,11 +39,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
           {/* Modal card */}
           <motion.section
             initial={{ opacity: 0, scale: 0.92, y: 30 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
+            animate={{ opacity: 1, scale: 0.98, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-lg overflow-hidden rounded-3xl shadow-2xl"
+            className="relative w-full max-w-[480px] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-3xl shadow-2xl"
             style={{
               background: isDarkMode
                 ? 'rgba(42, 36, 33, 0.85)'
@@ -69,7 +69,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
               <X className="w-5 h-5" />
             </motion.button>
 
-            <div className="p-8 md:p-12">
+            <div className="p-8 md:p-10">
               {/* Branding */}
               <div className="flex flex-col items-center mb-10 text-center">
                 <div className="inline-flex items-center space-x-2 text-[#C06C5D] mb-4">
@@ -86,25 +86,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
               </div>
 
               {/* Auth Tabs */}
-              <div className="flex justify-center space-x-12 mb-10">
-                <button
-                  onClick={() => setActiveTab('signup')}
-                  className="group relative pb-2 focus:outline-none"
-                >
-                  <span
-                    className={`text-xl font-serif italic transition-opacity duration-300 ${
-                      isDarkMode ? 'text-[#FDF8F3]' : 'text-[#3a2e2a]'
-                    } ${activeTab !== 'signup' ? 'opacity-40 hover:opacity-100' : ''}`}
-                  >
-                    Sign Up
-                  </span>
-                  {activeTab === 'signup' && (
-                    <motion.span
-                      layoutId="authTabIndicator"
-                      className="absolute bottom-0 left-0 w-full h-0.5 bg-[#C06C5D] rounded-full"
-                    />
-                  )}
-                </button>
+              <div className="flex justify-center space-x-12 mb-8">
                 <button
                   onClick={() => setActiveTab('signin')}
                   className="group relative pb-2 focus:outline-none"
@@ -123,16 +105,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                     />
                   )}
                 </button>
+                <button
+                  onClick={() => setActiveTab('signup')}
+                  className="group relative pb-2 focus:outline-none"
+                >
+                  <span
+                    className={`text-xl font-serif italic transition-opacity duration-300 ${
+                      isDarkMode ? 'text-[#FDF8F3]' : 'text-[#3a2e2a]'
+                    } ${activeTab !== 'signup' ? 'opacity-40 hover:opacity-100' : ''}`}
+                  >
+                    Sign Up
+                  </span>
+                  {activeTab === 'signup' && (
+                    <motion.span
+                      layoutId="authTabIndicator"
+                      className="absolute bottom-0 left-0 w-full h-0.5 bg-[#C06C5D] rounded-full"
+                    />
+                  )}
+                </button>
               </div>
 
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
-                  initial={{ opacity: 0, x: activeTab === 'signup' ? -20 : 20 }}
+                  initial={{ opacity: 0, x: activeTab === 'signin' ? -20 : 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: activeTab === 'signup' ? 20 : -20 }}
+                  exit={{ opacity: 0, x: activeTab === 'signin' ? 20 : -20 }}
                   transition={{ duration: 0.25 }}
-                  className="space-y-8"
+                  className="space-y-6"
                 >
                   {/* Google Sign-In */}
                   <button
