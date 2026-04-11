@@ -43,3 +43,64 @@ Implementation evidence for setup, foundational, and initial user-story auth int
 | TOTP setup fallback error        | `Unable to start TOTP setup right now.`                                                                |
 | TOTP verify fallback error       | `Invalid authentication code.`                                                                         |
 | Email/password scope enforcement | `Email/password only in this release`                                                                  |
+
+## Additional Verification Evidence (2026-04-11)
+
+### T036 / SC-003 Failure Matrix
+
+- Command: `npx vitest run src/tests/authService.metrics.test.ts src/tests/app.auth-guards.test.tsx --reporter=verbose`
+- Evidence: `SC-003 failure matrix: 30 failure events return actionable error messages` passed.
+- Protocol encoded in test:
+	- 10 sign-in validation failures (`invalid-email`, empty password)
+	- 10 sign-up conflict failures (`auth/email-already-in-use`)
+	- 10 password-reset connectivity failures (`auth/network-request-failed`)
+- Assertions passed: 30 total failures, all failed operations returned non-empty actionable user-facing error strings.
+
+### T037 / SC-006 Protected-Action Blocking
+
+- Command: `npx vitest run src/tests/authService.metrics.test.ts src/tests/app.auth-guards.test.tsx --reporter=verbose`
+- Evidence: `SC-006: 30 protected action attempts remain blocked when unauthenticated` passed.
+- Protocol encoded in test: 30 attempts (15x Dashboard + 15x Statistics) while unauthenticated.
+- Assertions passed: protected content stayed inaccessible and sign-in-required gating remained visible.
+
+### T038 / SC-007 Gated Remediation Visibility
+
+- Command: `npx vitest run src/tests/authService.metrics.test.ts src/tests/app.auth-guards.test.tsx --reporter=verbose`
+- Evidence: `SC-007: 20 gated-session remediation checks show guidance and keep actions blocked` passed.
+- Protocol encoded in test: pending-authenticated state with missing email + TOTP prerequisites, followed by 20 remediation refresh attempts.
+- Assertions passed: guidance text remained visible, protected ready-state content remained blocked, and remediation refresh action executed for all 20 checks.
+
+### T039 / SC-008 Cooldown Enforcement
+
+- Command: `npx vitest run src/tests/authService.metrics.test.ts src/tests/app.auth-guards.test.tsx --reporter=verbose`
+- Evidence: `SC-008 cooldown: 20 sessions trigger 5 failures then enforce disabled submit` passed.
+- Protocol encoded in test: for each of 20 simulated sessions, trigger 5 failed sign-ins in-window and verify next attempt is blocked.
+- Assertions passed: cooldown enforcement observed in 20/20 sessions via `client/cooldown` response.
+
+### T041 / CON-002 Deletion Interoperability Fallback
+
+- Command: `npx vitest run src/tests/authService.metrics.test.ts src/tests/app.auth-guards.test.tsx --reporter=verbose`
+- Evidence: `CON-002: account-state invalidation fallback removes authenticated UI access` passed.
+- Protocol encoded in test: start in authenticated-ready UI, simulate invalidated session/auth fallback, rerender app state.
+- Assertions passed: authenticated UI was removed and sign-in-required state replaced it with no residual protected access.
+
+### T042 / CON-003 Sync Non-Regression (Logical OR Preservation)
+
+- Command: `npm --prefix functions test -- --verbose tests/core/test_sync.js tests/handlers/test_api.js`
+- Evidence: backend sync suites passed (`2/2` suites, `17/17` tests).
+- Key passing cases:
+	- `computeMerge ... keeps completed true when either side is true`
+	- `syncHabitLogsHandler preserves completed=true under concurrent conflicting writes`
+- Authenticated-session path coverage: sync handler tests execute with authenticated claims (`email_verified: true`, `totpVerified: true`) and preserve Logical OR semantics under conflict.
+
+### T044 / CON-005 Process Compliance (Context7 + Firebase MCP)
+
+- Context7 evidence:
+	- Called `mcp_io_github_ups_resolve-library-id` with query `firebase web auth` and selected `/firebase/firebase-js-sdk`.
+	- Called `mcp_io_github_ups_get-library-docs` for auth topic coverage (`onIdTokenChanged`, `sendPasswordResetEmail`, related auth APIs).
+- Firebase MCP evidence:
+	- Activated Firebase project/auth tool groups.
+	- Ran `mcp_firebase-mcp-_firebase_get_environment` (active project `purehabit-b2923`, authenticated user present, project directory bound).
+	- Ran `mcp_firebase-mcp-_firebase_list_projects` and retrieved project listing for `purehabit-b2923`.
+
+Conclusion: CON-005 satisfied with in-session evidence of required toolchain usage.
