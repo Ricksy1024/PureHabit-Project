@@ -41,7 +41,7 @@
 - [x] T007 Test-first: capture failing auth hook bootstrap scenario, then implement baseline auth hook scaffold (state types, provider contract, single onAuthStateChanged subscription bootstrap, initial auth-state hydration) in src/hooks/useAuth.ts; reserve resilience hardening for T022
 - [x] T008 Test-first: capture failing provider wiring scenario, then integrate auth state provider wiring and bootstrap usage in src/main.tsx and src/App.tsx
 - [x] T009 Test-first: capture failing non-email-auth UI scenario, then enforce email/password-only scope by disabling non-email auth actions in src/components/AuthModal.tsx [FR-013]
-- [ ] T050 Commit checkpoint: commit Setup + Foundational completion with task IDs T001-T009 in commit message body
+- [x] T050 Commit checkpoint: commit Setup + Foundational completion with task IDs T001-T009 in commit message body
 
 **Checkpoint**: Foundation complete; user stories can be implemented.
 
@@ -67,7 +67,7 @@
 - [x] T055 [US1] Test-first: capture failing forgot-password non-enumeration scenario, then implement identical reset-confirmation messaging for registered and unregistered emails in src/components/AuthModal.tsx [FR-017]
 - [x] T056 [US1] Test-first: capture failing forgot-password connectivity scenario, then implement inline connectivity-specific reset-request error handling while preserving current Sign In form values in src/components/AuthModal.tsx [FR-018, FR-011]
 - [x] T047 [US1] Test-first: capture failing gated-remediation scenario, then render guided remediation states for incomplete email verification or TOTP in src/App.tsx [FR-015, SC-007]
-- [ ] T051 Commit checkpoint: commit User Story 1 completion with task IDs T010-T015, T045-T047, T055-T056, T059 in commit message body
+- [x] T051 Commit checkpoint: commit User Story 1 completion with task IDs T010-T015, T045-T047, T055-T056, T059 in commit message body
 
 **Checkpoint**: User Story 1 is independently functional and testable.
 
@@ -90,7 +90,7 @@
 - [x] T020 [US2] Test-first: capture failing onboarding-guidance scenario, then add guided onboarding UI for pending email verification and TOTP completion in src/components/AuthModal.tsx [FR-008, FR-015]
 - [x] T021 [US2] Test-first: capture failing form close/reopen continuity scenario, then preserve auth form progress across auth modal close/reopen in src/App.tsx and src/components/AuthModal.tsx [FR-011]
 - [x] T048 [US2] Test-first: capture failing onboarding close/reopen continuity scenario, then preserve onboarding step progress across auth modal close/reopen in src/App.tsx and src/components/AuthModal.tsx [FR-011]
-- [ ] T052 Commit checkpoint: commit User Story 2 completion with task IDs T016-T021, T048, T057-T058 in commit message body
+- [x] T052 Commit checkpoint: commit User Story 2 completion with task IDs T016-T021, T048, T057-T058 in commit message body
 
 **Checkpoint**: User Stories 1 and 2 both work independently.
 
@@ -111,7 +111,7 @@
 - [x] T026 [US3] Test-first: capture failing account-conflict fallback scenario, then handle account-state conflicts by forcing safe unauthenticated fallback in src/hooks/useAuth.ts and src/App.tsx [FR-012, SC-006]
 - [x] T027 [US3] Test-first: capture failing modal-live-guidance scenario, then auto-update auth modal guidance in-place as verification prerequisites complete in src/components/AuthModal.tsx [FR-015, FR-019]
 - [x] T049 [US3] Test-first: capture failing invalid-session fallback scenario, then handle invalid-session detection with safe unauthenticated fallback in src/hooks/useAuth.ts and src/App.tsx [FR-012, SC-006]
-- [ ] T053 Commit checkpoint: commit User Story 3 completion with task IDs T022-T027, T049 in commit message body
+- [x] T053 Commit checkpoint: commit User Story 3 completion with task IDs T022-T027, T049 in commit message body
 
 **Checkpoint**: All user stories are functional and independently testable.
 
@@ -140,7 +140,7 @@
 - [x] T042 [P] Verify CON-003 non-regression by running authenticated sync conflict scenarios through the new auth UI session path and confirming Logical OR completion preservation, and record evidence in specs/002-connect-auth-ui/reviews/review-auth-quality.md [CON-003]
 - [x] T043 [P] Verify CON-004 by running backend sync/streak decoupling unit-test suites and recording pass evidence in specs/002-connect-auth-ui/reviews/review-auth-quality.md [CON-004]
 - [x] T044 [P] Verify CON-005 process compliance by logging implementation-session evidence of Context7 for documentation lookup and Firebase MCP for Firebase actions in specs/002-connect-auth-ui/reviews/review-auth-quality.md [CON-005]
-- [ ] T054 Commit checkpoint: commit Polish + verification completion with task IDs T028-T044, T060 in commit message body
+- [x] T054 Commit checkpoint: commit Polish + verification completion with task IDs T028-T044, T060 in commit message body
 
 ---
 
