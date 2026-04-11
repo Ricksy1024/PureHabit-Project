@@ -22,12 +22,12 @@ npx vitest run src/tests/authService.metrics.test.ts src/tests/app.auth-guards.t
 
 ## Results
 
-| Task | Success Criterion | Trial Size | Assertion Implemented in Test | Observed Status |
-| --- | --- | --- | --- | --- |
-| T032 (SC-001) | >=95% of valid returning-user sign-ins complete in <60s | 20 sign-ins | `withinThreshold / 20 >= 0.95` where `withinThreshold` counts durations `< 60000ms` | PASS |
-| T033 (SC-004) | >=99% of authenticated reloads remain recognized | 100 reload trials | `recognized / 100 >= 0.99` | PASS |
-| T034 (SC-005) | >=99% of auth-state transitions reflect in <=5s | 100 transitions | `withinFiveSeconds / 100 >= 0.99` where elapsed `<= 5000ms` | PASS |
-| T035 (SC-002) | >=95% of valid new-user registrations succeed on first attempt | 20 registrations | `successful / 20 >= 0.95` | PASS |
+| Task          | Success Criterion                                              | Trial Size        | Assertion Implemented in Test                                                       | Observed Status |
+| ------------- | -------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------- | --------------- |
+| T032 (SC-001) | >=95% of valid returning-user sign-ins complete in <60s        | 20 sign-ins       | `withinThreshold / 20 >= 0.95` where `withinThreshold` counts durations `< 60000ms` | PASS            |
+| T033 (SC-004) | >=99% of authenticated reloads remain recognized               | 100 reload trials | `recognized / 100 >= 0.99`                                                          | PASS            |
+| T034 (SC-005) | >=99% of auth-state transitions reflect in <=5s                | 100 transitions   | `withinFiveSeconds / 100 >= 0.99` where elapsed `<= 5000ms`                         | PASS            |
+| T035 (SC-002) | >=95% of valid new-user registrations succeed on first attempt | 20 registrations  | `successful / 20 >= 0.95`                                                           | PASS            |
 
 ## Raw Test Evidence (Excerpt)
 

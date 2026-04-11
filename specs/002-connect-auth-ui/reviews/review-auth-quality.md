@@ -51,9 +51,9 @@ Implementation evidence for setup, foundational, and initial user-story auth int
 - Command: `npx vitest run src/tests/authService.metrics.test.ts src/tests/app.auth-guards.test.tsx --reporter=verbose`
 - Evidence: `SC-003 failure matrix: 30 failure events return actionable error messages` passed.
 - Protocol encoded in test:
-	- 10 sign-in validation failures (`invalid-email`, empty password)
-	- 10 sign-up conflict failures (`auth/email-already-in-use`)
-	- 10 password-reset connectivity failures (`auth/network-request-failed`)
+  - 10 sign-in validation failures (`invalid-email`, empty password)
+  - 10 sign-up conflict failures (`auth/email-already-in-use`)
+  - 10 password-reset connectivity failures (`auth/network-request-failed`)
 - Assertions passed: 30 total failures, all failed operations returned non-empty actionable user-facing error strings.
 
 ### T037 / SC-006 Protected-Action Blocking
@@ -89,18 +89,18 @@ Implementation evidence for setup, foundational, and initial user-story auth int
 - Command: `npm --prefix functions test -- --verbose tests/core/test_sync.js tests/handlers/test_api.js`
 - Evidence: backend sync suites passed (`2/2` suites, `17/17` tests).
 - Key passing cases:
-	- `computeMerge ... keeps completed true when either side is true`
-	- `syncHabitLogsHandler preserves completed=true under concurrent conflicting writes`
+  - `computeMerge ... keeps completed true when either side is true`
+  - `syncHabitLogsHandler preserves completed=true under concurrent conflicting writes`
 - Authenticated-session path coverage: sync handler tests execute with authenticated claims (`email_verified: true`, `totpVerified: true`) and preserve Logical OR semantics under conflict.
 
 ### T044 / CON-005 Process Compliance (Context7 + Firebase MCP)
 
 - Context7 evidence:
-	- Called `mcp_io_github_ups_resolve-library-id` with query `firebase web auth` and selected `/firebase/firebase-js-sdk`.
-	- Called `mcp_io_github_ups_get-library-docs` for auth topic coverage (`onIdTokenChanged`, `sendPasswordResetEmail`, related auth APIs).
+  - Called `mcp_io_github_ups_resolve-library-id` with query `firebase web auth` and selected `/firebase/firebase-js-sdk`.
+  - Called `mcp_io_github_ups_get-library-docs` for auth topic coverage (`onIdTokenChanged`, `sendPasswordResetEmail`, related auth APIs).
 - Firebase MCP evidence:
-	- Activated Firebase project/auth tool groups.
-	- Ran `mcp_firebase-mcp-_firebase_get_environment` (active project `purehabit-b2923`, authenticated user present, project directory bound).
-	- Ran `mcp_firebase-mcp-_firebase_list_projects` and retrieved project listing for `purehabit-b2923`.
+  - Activated Firebase project/auth tool groups.
+  - Ran `mcp_firebase-mcp-_firebase_get_environment` (active project `purehabit-b2923`, authenticated user present, project directory bound).
+  - Ran `mcp_firebase-mcp-_firebase_list_projects` and retrieved project listing for `purehabit-b2923`.
 
 Conclusion: CON-005 satisfied with in-session evidence of required toolchain usage.
