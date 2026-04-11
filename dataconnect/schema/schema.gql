@@ -1,0 +1,22 @@
+type User @table {
+  displayName: String!
+  createdAt: Timestamp!
+  email: String
+  photoUrl: String
+}
+
+type Habit @table {
+  user: User!
+  name: String!
+  frequency: String!
+  createdAt: Timestamp!
+  reminderTime: String
+}
+
+type HabitLog @table {
+  habit: Habit!
+  user: User!
+  logDate: Date!
+  isCompleted: Boolean!
+  notes: String
+}

@@ -1,0 +1,38 @@
+query ListMyHabits @auth(level: USER) {
+  habits(where: {userId: {eq_expr: "auth.uid"}}) {
+    id
+    name
+    frequency
+    createdAt
+    reminderTime
+  }
+}
+
+mutation CreateHabit($name: String!, $frequency: String!, $reminderTime: String) @auth(level: USER) {
+  habit_insert(data: {
+    userId_expr: "auth.uid",
+    name: $name,
+    frequency: $frequency,
+    createdAt_expr: "request.time",
+    reminderTime: $reminderTime
+  })
+}
+
+query GetHabitLogsForDate($logDate: Date!) @auth(level: USER) {
+  habitLogs(where: {userId: {eq_expr: "auth.uid"}, logDate: {eq: $logDate}}) {
+    id
+    habit {
+      name
+    }
+    logDate
+    isCompleted
+    notes
+  }
+}
+
+mutation CompleteHabitLog($id: UUID!, $notes: String) @auth(level: USER) {
+  habitLog_update(
+    key: {id: $id},
+    data: {isCompleted: true, notes: $notes}
+  )
+}
