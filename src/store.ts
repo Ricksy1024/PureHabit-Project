@@ -1,7 +1,26 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Habit, HabitLog, Category } from './types';
-import { startOfDay, format, isSameDay } from 'date-fns';
+import { startOfDay, format } from 'date-fns';
+
+const getInitialTheme = (): 'light' | 'dark' => {
+  if (typeof window === 'undefined') {
+    return 'light';
+  }
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
+const getInitialTimezone = (): string => {
+  if (typeof Intl !== 'undefined') {
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (detected) {
+      return detected;
+    }
+  }
+
+  return 'UTC';
+};
 
 interface HabitState {
   habits: Habit[];
@@ -9,6 +28,10 @@ interface HabitState {
   categories: Category[];
   userName: string;
   theme: 'light' | 'dark';
+  timezone: string;
+  notificationsEnabled: boolean;
+  aiInsightsEnabled: boolean;
+  reminderWindow: 'morning' | 'afternoon' | 'evening' | 'custom';
   
   // Actions
   addHabit: (habit: Omit<Habit, 'id' | 'createdAt' | 'currentStreak' | 'longestStreak' | 'archived'>) => void;
@@ -18,6 +41,10 @@ interface HabitState {
   setUserName: (name: string) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   addCategory: (category: Category) => void;
+  setTimezone: (timezone: string) => void;
+  setNotificationsEnabled: (enabled: boolean) => void;
+  setAiInsightsEnabled: (enabled: boolean) => void;
+  setReminderWindow: (window: 'morning' | 'afternoon' | 'evening' | 'custom') => void;
 }
 
 export const useHabitStore = create<HabitState>()(
@@ -75,7 +102,11 @@ export const useHabitStore = create<HabitState>()(
         { id: '4', name: 'Fitness', color: '#CCD5AE' },
       ],
       userName: 'Alex',
-      theme: 'light',
+      theme: getInitialTheme(),
+      timezone: getInitialTimezone(),
+      notificationsEnabled: true,
+      aiInsightsEnabled: true,
+      reminderWindow: 'evening',
 
       addHabit: (habit) => set((state) => ({
         habits: [...state.habits, {
@@ -137,6 +168,10 @@ export const useHabitStore = create<HabitState>()(
       addCategory: (category) => set((state) => ({
         categories: [...state.categories, category]
       })),
+      setTimezone: (timezone) => set({ timezone }),
+      setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
+      setAiInsightsEnabled: (enabled) => set({ aiInsightsEnabled: enabled }),
+      setReminderWindow: (window) => set({ reminderWindow: window }),
     }),
     {
       name: 'pure-habit-storage',

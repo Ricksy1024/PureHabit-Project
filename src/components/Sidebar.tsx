@@ -1,7 +1,6 @@
 import React from 'react';
-import { LayoutDashboard, BarChart3, ListTodo, Layers, Flame, Settings, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, BarChart3, ListTodo, Layers, Flame, Settings, Moon, Sun, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useHabitStore } from '@/store';
@@ -9,27 +8,30 @@ import { useHabitStore } from '@/store';
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  onOpenSettings: () => void;
 }
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'statistics', label: 'Statistics', icon: BarChart3 },
   { id: 'habits', label: 'Habits', icon: ListTodo },
   { id: 'categories', label: 'Categories', icon: Layers },
-  { id: 'streak', label: 'Streak', icon: Flame },
+  { id: 'streaks', label: 'Streaks', icon: Flame },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export function Sidebar({ activeTab, setActiveTab, onOpenSettings }: SidebarProps) {
   const { theme, setTheme, userName } = useHabitStore();
 
   return (
-    <aside className="w-64 h-screen flex flex-col border-r border-border bg-background/50 backdrop-blur-sm sticky top-0">
-      <div className="p-8 flex items-center gap-3">
+    <aside className="hidden md:flex w-72 h-screen flex-col border-r border-border bg-background/60 backdrop-blur-sm sticky top-0">
+      <button className="p-8 flex items-center gap-3 text-left hover:opacity-80 transition-opacity" onClick={() => setActiveTab('dashboard')}>
         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
           <Flame className="text-white w-5 h-5" />
         </div>
         <h1 className="text-xl font-semibold tracking-tight">Pure Habit</h1>
-      </div>
+      </button>
 
       <nav className="flex-1 px-4 space-y-2 mt-4">
         {navItems.map((item) => (
@@ -69,11 +71,13 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
             <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" />
             <AvatarFallback>AM</AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{userName} Morgan</p>
+          <div className="flex-1 min-w-0" onClick={onOpenSettings}>
+            <p className="text-sm font-semibold truncate">{userName}</p>
             <p className="text-xs text-muted-foreground truncate">Pro Member</p>
           </div>
-          <Settings className="w-4 h-4 text-muted-foreground group-hover:rotate-90 transition-transform duration-300" />
+          <button onClick={onOpenSettings} className="rounded-md p-1 hover:bg-secondary">
+            <Settings className="w-4 h-4 text-muted-foreground group-hover:rotate-90 transition-transform duration-300" />
+          </button>
         </div>
       </div>
     </aside>

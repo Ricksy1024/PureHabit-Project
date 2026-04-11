@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export function AIInsights() {
-  const { habits, logs, userName } = useHabitStore();
+  const { habits, logs, userName, aiInsightsEnabled } = useHabitStore();
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -19,8 +19,19 @@ export function AIInsights() {
   };
 
   useEffect(() => {
-    fetchInsight();
-  }, []);
+    if (aiInsightsEnabled) {
+      fetchInsight();
+    }
+  }, [aiInsightsEnabled]);
+
+  if (!aiInsightsEnabled) {
+    return (
+      <div className="bg-secondary/30 rounded-[32px] p-6 border border-border/50">
+        <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">AI Insight</h4>
+        <p className="text-sm text-muted-foreground">AI insights are turned off in settings.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-secondary/30 rounded-[32px] p-6 border border-border/50 relative overflow-hidden group">
@@ -38,13 +49,13 @@ export function AIInsights() {
       
       <AnimatePresence mode="wait">
         <motion.p
-          key={insight}
+          key={insight ?? 'idle'}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           className="text-sm leading-relaxed text-foreground/80 italic"
         >
-          {loading ? "Analyzing your patterns..." : insight}
+          {loading ? "Analyzing your patterns..." : (insight ?? 'No insight yet. Try refreshing.')}
         </motion.p>
       </AnimatePresence>
     </div>
