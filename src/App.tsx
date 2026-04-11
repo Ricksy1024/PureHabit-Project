@@ -4,11 +4,31 @@ import { format, addDays, startOfWeek, isSameDay, startOfMonth, endOfMonth, each
 import confetti from 'canvas-confetti';
 import { 
   Sparkles, LayoutDashboard, BarChart2, CheckSquare, Folder, Flame, 
-  Moon, Settings, Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical
+  Moon, Settings, Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical,
+  Activity, Apple, Dumbbell, Book, Heart, Coffee, Smile, Music, Zap, Target
 } from 'lucide-react';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ShaderBackground } from './components/ShaderBackground';
 import { StatisticsPage } from './components/StatisticsPage';
+import { AddActivityModal, NewActivity } from './components/AddActivityModal';
+import { EditActivityModal, ActivityToEdit, EditedActivity } from './components/EditActivityModal';
+import { HabitsPage } from './components/HabitsPage';
+import { CategoriesPage } from './components/CategoriesPage';
+
+const ICON_MAP = {
+  'Activity': Activity,
+  'Apple': Apple,
+  'Dumbbell': Dumbbell,
+  'Book': Book,
+  'Heart': Heart,
+  'Moon': Moon,
+  'Flame': Flame,
+  'Coffee': Coffee,
+  'Smile': Smile,
+  'Music': Music,
+  'Zap': Zap,
+  'Target': Target,
+};
 
 const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void }) => (
   <aside className={`w-64 h-screen flex flex-col px-6 py-8 backdrop-blur-sm border-r transition-colors duration-500 ${isDarkMode ? 'bg-black/20 border-[#4A2C24]/30' : 'bg-white/10 border-[#EADCCF]/20'}`}>
@@ -20,8 +40,8 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab }: { isDar
     <nav className="flex-1 space-y-1">
       <NavItem icon={<LayoutDashboard />} label="Dashboard" active={activeTab === 'Dashboard'} onClick={() => setActiveTab('Dashboard')} isDarkMode={isDarkMode} />
       <NavItem icon={<BarChart2 />} label="Statistics" active={activeTab === 'Statistics'} onClick={() => setActiveTab('Statistics')} isDarkMode={isDarkMode} />
-      <NavItem icon={<CheckSquare />} label="Habits" isDarkMode={isDarkMode} />
-      <NavItem icon={<Folder />} label="Categories" isDarkMode={isDarkMode} />
+      <NavItem icon={<CheckSquare />} label="Habits" active={activeTab === 'Habits'} onClick={() => setActiveTab('Habits')} isDarkMode={isDarkMode} />
+      <NavItem icon={<Folder />} label="Categories" active={activeTab === 'Categories'} onClick={() => setActiveTab('Categories')} isDarkMode={isDarkMode} />
       <NavItem icon={<Flame />} label="Streak" isDarkMode={isDarkMode} />
     </nav>
 
@@ -178,9 +198,12 @@ interface Habit {
   icon: React.ReactNode;
   done: boolean;
   bg: string;
+  applicableDays?: string[];
+  category?: string;
+  iconName?: string;
 }
 
-const HabitsList = ({ habits, toggleHabit, onReorder, isDarkMode }: { habits: Habit[], toggleHabit: (id: number) => void, onReorder: (newOrder: Habit[]) => void, isDarkMode: boolean }) => {
+const HabitsList = ({ habits, toggleHabit, onReorder, isDarkMode, onAddClick }: { habits: Habit[], toggleHabit: (id: number) => void, onReorder: (newOrder: Habit[]) => void, isDarkMode: boolean, onAddClick: () => void }) => {
   const handleToggle = (id: number, e: React.MouseEvent) => {
     const habit = habits.find(h => h.id === id);
     if (!habit?.done) {
@@ -203,7 +226,7 @@ const HabitsList = ({ habits, toggleHabit, onReorder, isDarkMode }: { habits: Ha
     <div>
       <div className="flex justify-between items-center mb-4 px-2">
         <h2 className={`font-serif text-2xl transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Daily Habits</h2>
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${isDarkMode ? 'bg-[#D0705B]/20 text-[#D0705B] hover:bg-[#D0705B]/30' : 'bg-[#D0705B]/10 text-[#D0705B] hover:bg-[#D0705B]/20'}`}>Add New</motion.button>
+        <motion.button onClick={onAddClick} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${isDarkMode ? 'bg-[#D0705B]/20 text-[#D0705B] hover:bg-[#D0705B]/30' : 'bg-[#D0705B]/10 text-[#D0705B] hover:bg-[#D0705B]/20'}`}>Add New</motion.button>
       </div>
       <Reorder.Group axis="y" values={habits} onReorder={onReorder} className="space-y-4">
         <AnimatePresence>
@@ -252,33 +275,48 @@ const HabitsList = ({ habits, toggleHabit, onReorder, isDarkMode }: { habits: Ha
   );
 };
 
-const ActivityChart = ({ isDarkMode }: { isDarkMode: boolean }) => {
-  const data = [40, 60, 30, 80, 50, 20, 30];
+const ActivityChart = ({ isDarkMode, allHabits, selectedDate }: { isDarkMode: boolean, allHabits: Habit[], selectedDate: Date }) => {
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  
+  const getCompletionForDay = (offsetFromToday: number): number => {
+    const date = new Date(selectedDate);
+    date.setDate(date.getDate() - offsetFromToday);
+    const dayName = format(date, 'EEEE');
+    
+    const habitsForDay = allHabits.filter(h => {
+      if (!h.applicableDays || h.applicableDays.length === 0) return true;
+      return h.applicableDays.includes(dayName);
+    });
+    
+    if (habitsForDay.length === 0) return 0;
+    const completed = habitsForDay.filter(h => h.done).length;
+    return Math.round((completed / habitsForDay.length) * 100);
+  };
+  
+  const data = [6, 5, 4, 3, 2, 1, 0].map(getCompletionForDay).reverse();
   
   return (
     <div className={`backdrop-blur-md rounded-3xl p-6 soft-shadow transition-colors duration-500 ${isDarkMode ? 'bg-[#2A2421]/70' : 'bg-[#FAF5F0]/70'}`}>
-      <h3 className={`text-[11px] font-bold tracking-widest mb-6 uppercase transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Activity Bar Chart</h3>
-      <div className="flex items-end justify-between h-24 mb-4">
+      <h3 className={`text-[11px] font-bold tracking-widest mb-6 uppercase transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Activity</h3>
+      <div className="flex items-end justify-between h-32 mb-4 gap-1.5">
         {data.map((val, i) => (
-          <div key={i} className="flex flex-col items-center gap-2 w-full group">
+          <div key={i} className="flex flex-col-reverse items-center gap-1 flex-1 h-full group">
+            <span className={`text-[10px] font-bold transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#2A2421]'}`}>
+              {days[i]}
+            </span>
             <motion.div 
               initial={{ height: 0 }}
-              animate={{ height: `${val}%` }}
-              transition={{ duration: 0.8, delay: i * 0.1 }}
-              className={`w-5 rounded-md transition-colors ${i === 3 ? 'bg-[#D0705B]' : (isDarkMode ? 'bg-[#4A2C24] group-hover:bg-[#D0705B]/50' : 'bg-[#E8DCD1] group-hover:bg-[#D0705B]/50')}`} 
+              animate={{ height: `${val || 5}%` }}
+              transition={{ duration: 0.8, delay: i * 0.05 }}
+              className="w-full bg-[#D0705B] rounded-md transition-all duration-300 group-hover:shadow-[0_0_12px_rgba(208,112,91,0.5)]"
+              title={`${val}% completion`}
             />
+            <span className={`text-[10px] font-bold transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+              {val}%
+            </span>
           </div>
         ))}
       </div>
-      <div className="flex justify-between px-1 mb-4">
-        {days.map((d, i) => (
-          <span key={i} className={`text-[10px] font-bold ${i === 3 ? 'text-[#D0705B]' : (isDarkMode ? 'text-[#A58876]' : 'text-[#2A2421]')}`}>{d}</span>
-        ))}
-      </div>
-      <p className={`text-[11px] text-center font-medium transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-        Your productivity is up <span className="text-[#4CAF50]">14%</span> this week
-      </p>
     </div>
   );
 };
@@ -325,11 +363,14 @@ const CategoriesWidget = ({ isDarkMode }: { isDarkMode: boolean }) => {
   );
 };
 
-const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
+const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boolean, pageType?: 'dashboard' | 'habits' | 'categories' }) => {
   const [range, setRange] = useState('Today');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewDate, setViewDate] = useState(new Date());
   const [habitData, setHabitData] = useState<Record<string, Habit[]>>({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleSetRange = (r: string) => {
     setRange(r);
@@ -348,16 +389,16 @@ const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
     const seed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
 
     return [
-      { id: 1, title: 'Morning Meditation', streak: '12 days', metric: '15 min', icon: <Wind className="text-[#D0705B] w-6 h-6" />, done: isPast ? (seed % 2 === 0) : false, bg: 'bg-[#FDECE8]' },
-      { id: 2, title: 'Hydrate Regularly', streak: '4 days', metric: '2.5 Liters', icon: <Droplet className="text-[#A58876] w-6 h-6" />, done: isPast ? (seed % 3 !== 0) : false, bg: 'bg-[#F2E8E3]' },
-      { id: 3, title: 'Daily Reading', streak: '28 days', metric: '20 pages', icon: <BookOpen className="text-[#A58876] w-6 h-6" />, done: isPast ? (seed % 5 !== 0) : false, bg: 'bg-[#F2E8E3]' },
+      { id: 1, title: 'Morning Meditation', streak: '12 days', metric: '15 min', icon: <Wind className="text-[#D0705B] w-6 h-6" />, done: isPast ? (seed % 2 === 0) : false, bg: 'bg-[#FDECE8]', iconName: 'Activity' },
+      { id: 2, title: 'Hydrate Regularly', streak: '4 days', metric: '2.5 Liters', icon: <Droplet className="text-[#A58876] w-6 h-6" />, done: isPast ? (seed % 3 !== 0) : false, bg: 'bg-[#F2E8E3]', iconName: 'Droplet' },
+      { id: 3, title: 'Daily Reading', streak: '28 days', metric: '20 pages', icon: <BookOpen className="text-[#A58876] w-6 h-6" />, done: isPast ? (seed % 5 !== 0) : false, bg: 'bg-[#F2E8E3]', iconName: 'Book' },
     ];
   };
 
   const [weeklyHabits, setWeeklyHabits] = useState<Habit[]>([
-    { id: 4, title: 'Workout 3x', streak: '2 weeks', metric: '1/3 done', icon: <Flame className="text-[#D0705B] w-6 h-6" />, done: false, bg: 'bg-[#FDECE8]' },
-    { id: 5, title: 'Read a book', streak: '1 month', metric: '100 pages', icon: <BookOpen className="text-[#A58876] w-6 h-6" />, done: true, bg: 'bg-[#F2E8E3]' },
-    { id: 6, title: 'Meal Prep', streak: '3 weeks', metric: '5 meals', icon: <Droplet className="text-[#A58876] w-6 h-6" />, done: false, bg: 'bg-[#F2E8E3]' },
+    { id: 4, title: 'Workout 3x', streak: '2 weeks', metric: '1/3 done', icon: <Flame className="text-[#D0705B] w-6 h-6" />, done: false, bg: 'bg-[#FDECE8]', category: 'Fitness', applicableDays: ['Monday', 'Wednesday', 'Friday'], iconName: 'Flame' },
+    { id: 5, title: 'Read a book', streak: '1 month', metric: '100 pages', icon: <BookOpen className="text-[#A58876] w-6 h-6" />, done: true, bg: 'bg-[#F2E8E3]', category: 'Learning', applicableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], iconName: 'Book' },
+    { id: 6, title: 'Meal Prep', streak: '3 weeks', metric: '5 meals', icon: <Droplet className="text-[#A58876] w-6 h-6" />, done: false, bg: 'bg-[#F2E8E3]', category: 'Health', applicableDays: ['Sunday'], iconName: 'Droplet' },
   ]);
 
   const currentHabits = range === 'Weekly' ? weeklyHabits : getHabitsForDate(selectedDate);
@@ -381,6 +422,53 @@ const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
     }
   };
 
+  const handleAddActivity = (activity: NewActivity) => {
+    const IconComponent = ICON_MAP[activity.iconName as keyof typeof ICON_MAP] || Activity;
+    const newHabit: Habit = {
+      id: Math.max(...weeklyHabits.map(h => h.id), 0) + 1,
+      title: activity.name,
+      streak: '0 days',
+      metric: activity.metric,
+      icon: <IconComponent className="text-[#D0705B] w-6 h-6" />,
+      done: false,
+      bg: 'bg-[#FDECE8]',
+      applicableDays: activity.days,
+      category: activity.category,
+      iconName: activity.iconName
+    };
+    setWeeklyHabits([...weeklyHabits, newHabit]);
+    setIsModalOpen(false);
+  };
+
+  const handleEditHabit = (habit: Habit) => {
+    setEditingHabit(habit);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEditedHabit = (editedActivity: EditedActivity) => {
+    const IconComponent = ICON_MAP[editedActivity.iconName as keyof typeof ICON_MAP] || Activity;
+    const updatedHabits = weeklyHabits.map(habit => {
+      if (habit.id === editedActivity.id) {
+        return {
+          ...habit,
+          title: editedActivity.name,
+          metric: editedActivity.metric,
+          category: editedActivity.category,
+          applicableDays: editedActivity.days,
+          icon: <IconComponent className="text-[#D0705B] w-6 h-6" />
+        };
+      }
+      return habit;
+    });
+    setWeeklyHabits(updatedHabits);
+    setIsEditModalOpen(false);
+    setEditingHabit(null);
+  };
+
+  const handleDeleteHabit = (id: number) => {
+    setWeeklyHabits(weeklyHabits.filter(h => h.id !== id));
+  };
+
   const getDayProgress = (date: Date) => {
     const habitsForDay = getHabitsForDate(date);
     return habitsForDay.length > 0 ? Math.round((habitsForDay.filter(h => h.done).length / habitsForDay.length) * 100) : 0;
@@ -389,6 +477,69 @@ const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
   const progress = range === 'Weekly' 
     ? (weeklyHabits.length > 0 ? Math.round((weeklyHabits.filter(h => h.done).length / weeklyHabits.length) * 100) : 0)
     : getDayProgress(selectedDate);
+
+  if (pageType === 'habits') {
+    return (
+      <>
+        <HabitsPage
+          isDarkMode={isDarkMode}
+          habits={weeklyHabits}
+          onEdit={handleEditHabit}
+          onDelete={handleDeleteHabit}
+          onAddClick={() => setIsModalOpen(true)}
+        />
+        <AddActivityModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAdd={handleAddActivity} isDarkMode={isDarkMode} />
+        <EditActivityModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={handleSaveEditedHabit}
+          isDarkMode={isDarkMode}
+          activity={
+            editingHabit
+              ? {
+                  id: editingHabit.id,
+                  name: editingHabit.title,
+                  metric: editingHabit.metric,
+                  category: editingHabit.category || 'Health',
+                  iconName: editingHabit.iconName || 'Activity',
+                  days: editingHabit.applicableDays || []
+                }
+              : null
+          }
+        />
+      </>
+    );
+  }
+
+  if (pageType === 'categories') {
+    return (
+      <>
+        <CategoriesPage
+          isDarkMode={isDarkMode}
+          habits={weeklyHabits}
+          onEdit={handleEditHabit}
+        />
+        <EditActivityModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={handleSaveEditedHabit}
+          isDarkMode={isDarkMode}
+          activity={
+            editingHabit
+              ? {
+                  id: editingHabit.id,
+                  name: editingHabit.title,
+                  metric: editingHabit.metric,
+                  category: editingHabit.category || 'Health',
+                  iconName: editingHabit.iconName || 'Activity',
+                  days: editingHabit.applicableDays || []
+                }
+              : null
+          }
+        />
+      </>
+    );
+  }
 
   return (
     <main className="flex-1 p-8 overflow-y-auto z-10">
@@ -406,21 +557,16 @@ const MainContent = ({ isDarkMode }: { isDarkMode: boolean }) => {
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <HabitsList habits={currentHabits} toggleHabit={toggleHabit} onReorder={handleReorder} isDarkMode={isDarkMode} />
+            <HabitsList habits={currentHabits} toggleHabit={toggleHabit} onReorder={handleReorder} isDarkMode={isDarkMode} onAddClick={() => setIsModalOpen(true)} />
           </div>
           <div className="space-y-6">
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-              <ActivityChart isDarkMode={isDarkMode} />
-            </motion.div>
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-              <QuoteCard isDarkMode={isDarkMode} />
-            </motion.div>
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-              <CategoriesWidget isDarkMode={isDarkMode} />
+              <ActivityChart isDarkMode={isDarkMode} allHabits={currentHabits} selectedDate={selectedDate} />
             </motion.div>
           </div>
         </div>
       </div>
+      <AddActivityModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAdd={handleAddActivity} isDarkMode={isDarkMode} />
     </main>
   );
 };
@@ -434,11 +580,15 @@ export default function App() {
       <div className={`flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
         <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} activeTab={activeTab} setActiveTab={setActiveTab} />
         {activeTab === 'Dashboard' ? (
-          <MainContent isDarkMode={isDarkMode} />
+          <MainContent isDarkMode={isDarkMode} pageType="dashboard" />
         ) : activeTab === 'Statistics' ? (
           <StatisticsPage isDarkMode={isDarkMode} />
+        ) : activeTab === 'Habits' ? (
+          <MainContent isDarkMode={isDarkMode} pageType="habits" />
+        ) : activeTab === 'Categories' ? (
+          <MainContent isDarkMode={isDarkMode} pageType="categories" />
         ) : (
-          <MainContent isDarkMode={isDarkMode} />
+          <MainContent isDarkMode={isDarkMode} pageType="dashboard" />
         )}
       </div>
     </ShaderBackground>
