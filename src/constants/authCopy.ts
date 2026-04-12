@@ -28,6 +28,8 @@ export const AUTH_COPY = {
   modalTotpVerifyErrorFallback: 'Invalid authentication code.',
   modalEmailPasswordOnly: 'Email/password only in this release',
   modalSecureEmailFlow: 'secure email flow',
+  modalEmailVerificationComingSoon: 'Email verification: Coming soon.',
+  modalTwoFactorComingSoon: 'Two-factor verification (TOTP): Coming soon.',
   modalCooldown:
     'Sign in is temporarily disabled. Retry in approximately {seconds} second(s).',
 } as const;

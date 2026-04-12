@@ -549,7 +549,9 @@ export default function App() {
   const isAuthenticated =
     authState.status === 'authenticated_ready' ||
     authState.status === 'authenticated_pending';
-  const isAuthorized = authState.status === 'authenticated_ready';
+  // TODO(auth-verification-coming-soon): Restore strict authorization gate when email + TOTP verification is enabled.
+  // const isAuthorized = authState.status === 'authenticated_ready';
+  const isAuthorized = isAuthenticated;
 
   const handleAuthAction = () => {
     if (isAuthenticated) {

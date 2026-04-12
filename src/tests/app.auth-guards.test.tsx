@@ -128,24 +128,16 @@ describe('App auth guard verification tasks', () => {
     expect(screen.getByText('Auth Modal Open')).toBeInTheDocument();
   });
 
-  it('SC-007: 20 gated-session remediation checks show guidance and keep actions blocked', async () => {
+  it('Verification coming-soon mode: pending sessions are not blocked from authenticated UI', async () => {
     authStateRef.value = authenticatedPendingState();
 
     const { default: App } = await import('../App');
     render(<App />);
 
-    expect(screen.getByText('Finish Security Setup')).toBeInTheDocument();
-    expect(screen.getByText('Verify your email address')).toBeInTheDocument();
-    expect(screen.getByText('Finish TOTP setup')).toBeInTheDocument();
-    expect(screen.queryByText('Good Morning, Alex')).not.toBeInTheDocument();
-
-    const refreshButton = screen.getByText('Refresh Status');
-
-    for (let i = 0; i < 20; i += 1) {
-      fireEvent.click(refreshButton);
-    }
-
-    expect(authApiRef.refreshAuthState).toHaveBeenCalledTimes(20);
+    expect(screen.getByText('Good Morning, Alex')).toBeInTheDocument();
+    expect(screen.queryByText('Finish Security Setup')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sign In Required')).not.toBeInTheDocument();
+    expect(authApiRef.refreshAuthState).not.toHaveBeenCalled();
   });
 
   it('SC-004: 100 authenticated reload continuity trials keep session recognized >=99%', async () => {

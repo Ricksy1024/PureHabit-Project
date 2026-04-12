@@ -513,6 +513,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                         />
                       </div>
 
+                      <div
+                        className={`rounded-2xl px-4 py-3 text-xs space-y-1 ${
+                          isDarkMode
+                            ? 'bg-[#D0705B]/15 text-[#FDF8F3]'
+                            : 'bg-[#FFF1EC] text-[#4A3E37]'
+                        }`}
+                      >
+                        <p>{AUTH_COPY.modalEmailVerificationComingSoon}</p>
+                        <p>{AUTH_COPY.modalTwoFactorComingSoon}</p>
+                      </div>
+
                       <form
                         className="space-y-5"
                         onSubmit={activeTab === 'signin' ? handleSignInSubmit : handleSignUpSubmit}

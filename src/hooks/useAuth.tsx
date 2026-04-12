@@ -90,16 +90,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           : incomingUser;
 
         const security = await resolveSecurityStatus(user, options.forceRefresh);
+        const relaxedSecurity = {
+          ...security,
+          // TODO(auth-verification-coming-soon): Re-enable verification gate when email + TOTP flow is shipped.
+          isReady: true,
+          // TODO(auth-verification-coming-soon): Restore missing verification steps when gating is re-enabled.
+          missingSteps: [],
+        };
         if (currentSequence !== sequenceRef.current) {
           return;
         }
 
         setAuthState({
-          status: security.isReady
-            ? 'authenticated_ready'
-            : 'authenticated_pending',
+          // TODO(auth-verification-coming-soon): Restore conditional status based on verification readiness.
+          // status: security.isReady
+          //   ? 'authenticated_ready'
+          //   : 'authenticated_pending',
+          status: 'authenticated_ready',
           user,
-          security,
+          security: relaxedSecurity,
           profile: null,
           profileStatus: 'loading',
           message: null,
@@ -117,11 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setAuthState({
-          status: security.isReady
-            ? 'authenticated_ready'
-            : 'authenticated_pending',
+          // TODO(auth-verification-coming-soon): Restore conditional status based on verification readiness.
+          // status: security.isReady
+          //   ? 'authenticated_ready'
+          //   : 'authenticated_pending',
+          status: 'authenticated_ready',
           user,
-          security,
+          security: relaxedSecurity,
           profile: profileResult.profile,
           profileStatus: profileResult.profileStatus,
           message: profileResult.message,
