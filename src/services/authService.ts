@@ -574,7 +574,6 @@ export async function refreshUser(user: User): Promise<User> {
 
 function isSessionConflictCode(code: string) {
   return (
-    code === 'permission-denied' ||
     code === 'unauthenticated' ||
     code === 'auth/user-token-expired' ||
     code === 'auth/user-disabled' ||

@@ -1,4 +1,4 @@
-const { onUserCreated } = require('firebase-functions/v2/identity');
+const { user } = require('firebase-functions/v1/auth');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { admin, db } = require('./db');
@@ -414,7 +414,7 @@ async function reminderSchedulerHandler(_event, deps = {}) {
   };
 }
 
-const onUserCreate = onUserCreated(onUserCreateHandler);
+const onUserCreate = user().onCreate((authUser) => onUserCreateHandler({ data: authUser }));
 const onHabitLogWrite = onDocumentWritten('habit_logs/{logId}', onHabitLogWriteHandler);
 const reminderScheduler = onSchedule('every 1 minutes', reminderSchedulerHandler);
 

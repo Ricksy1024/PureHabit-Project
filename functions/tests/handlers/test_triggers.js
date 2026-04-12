@@ -1,5 +1,7 @@
-jest.mock('firebase-functions/v2/identity', () => ({
-  onUserCreated: (handler) => handler,
+jest.mock('firebase-functions/v1/auth', () => ({
+  user: () => ({
+    onCreate: (handler) => handler,
+  }),
 }));
 
 jest.mock('firebase-functions/v2/firestore', () => ({
