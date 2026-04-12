@@ -169,8 +169,6 @@ export const StreakPage = ({ isDarkMode, habits, onEdit, onDelete }: StreakPageP
                 </h2>
               </div>
               <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
                 className="flex items-center gap-2"
               >
                 <Flame className="w-8 h-8 text-[#D0705B]" />

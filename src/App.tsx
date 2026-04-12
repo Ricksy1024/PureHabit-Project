@@ -138,12 +138,11 @@ const CalendarStrip = ({ selectedDate, setSelectedDate, range, getDayProgress, v
 
   return (
     <div className="flex flex-col w-full mt-4">
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="popLayout">
         {(range === 'Month' || range === 'Weekly') && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
             className="flex justify-between items-center w-full mb-6 px-4"
           >
             <motion.button
@@ -167,7 +166,7 @@ const CalendarStrip = ({ selectedDate, setSelectedDate, range, getDayProgress, v
         )}
       </AnimatePresence>
 
-      <div className={`flex ${range === 'Month' ? 'flex-wrap gap-y-6' : ''} justify-between items-center px-2`}>
+      <div className={`flex ${range === 'Month' ? 'flex-wrap gap-y-6' : ''} ${range === 'Month' ? 'justify-start' : 'justify-between'} items-center px-2`}>
         {days.map((d, i) => {
           const isActive = isSameDay(d, selectedDate);
           const progress = getDayProgress(d);

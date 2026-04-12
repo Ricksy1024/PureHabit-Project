@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, Lock, User, Palette, LogOut, Save, ChevronRight } from 'lucide-react';
+import { X, Bell, Lock, User, Palette, LogOut, Save, ChevronRight, Eye, EyeOff } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -27,10 +27,52 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     achievements: true,
     updates: false,
   });
+  const [profilePhoto, setProfilePhoto] = useState<string>(() => {
+    const saved = localStorage.getItem('userProfilePhoto');
+    return saved || 'https://picsum.photos/seed/alex/200/200';
+  });
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const photoData = event.target?.result as string;
+        setProfilePhoto(photoData);
+        localStorage.setItem('userProfilePhoto', photoData);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSave = () => {
     // Save logic here
     console.log('Settings saved:', { formData, notifications });
+    onClose();
+  };
+
+  const handlePasswordChange = () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('Az új jelszavak nem egyeznek!');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      alert('A jelszónak legalább 6 karakterből kell állnia!');
+      return;
+    }
+    console.log('Password changed successfully');
+    setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    setIsPasswordModalOpen(false);
   };
 
   const tabs = [
@@ -118,15 +160,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       isDarkMode ? 'border-[#D0705B] bg-[#4A2C24]' : 'border-[#D0705B] bg-[#FDECE8]'
                     }`}>
                       <img
-                        src="https://picsum.photos/seed/alex/200/200"
+                        src={profilePhoto}
                         alt="Profile"
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
                     </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
+                      onClick={() => fileInputRef.current?.click()}
                       className="px-4 py-2 rounded-lg bg-[#D0705B] text-white text-sm font-medium hover:bg-[#B85F4C] transition-colors"
                     >
                       Change Photo
@@ -308,6 +358,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <motion.button
                     whileHover={{ x: 5 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsPasswordModalOpen(true)}
                     className={`w-full flex items-center justify-between p-4 rounded-lg transition-colors ${
                       isDarkMode ? 'bg-[#4A2C24]/30 hover:bg-[#4A2C24]/50' : 'bg-[#E8DCD1]/30 hover:bg-[#E8DCD1]/50'
                     }`}
@@ -388,6 +439,164 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </motion.button>
             </div>
           </motion.div>
+
+          {/* Password Change Modal */}
+          <AnimatePresence>
+            {isPasswordModalOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  className="fixed inset-0 bg-black/40 z-40"
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 rounded-3xl soft-shadow z-50 transition-colors duration-500 ${
+                    isDarkMode ? 'bg-[#2A2421]' : 'bg-[#FAF5F0]'
+                  }`}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-6 border-b border-[#D0705B]/20">
+                    <h3 className={`text-xl font-serif font-bold transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                      Jelszó módosítása
+                    </h3>
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setIsPasswordModalOpen(false)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isDarkMode ? 'hover:bg-[#4A2C24] text-[#FDF8F3]' : 'hover:bg-[#E8DCD1] text-[#2A2421]'
+                      }`}
+                    >
+                      <X className="w-6 h-6" />
+                    </motion.button>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-6 space-y-4">
+                    {/* Old Password */}
+                    <div>
+                      <label className={`block text-xs font-bold uppercase mb-2 transition-colors ${
+                        isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+                      }`}>
+                        Régi jelszó
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showOldPassword ? 'text' : 'password'}
+                          value={passwordData.oldPassword}
+                          onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
+                          className={`w-full px-4 py-2 pr-10 rounded-lg transition-colors ${
+                            isDarkMode
+                              ? 'bg-[#4A2C24]/50 border border-[#4A2C24] text-[#FDF8F3] focus:border-[#D0705B] focus:outline-none'
+                              : 'bg-white border border-[#E8DCD1] text-[#2A2421] focus:border-[#D0705B] focus:outline-none'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowOldPassword(!showOldPassword)}
+                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${
+                            isDarkMode ? 'text-[#A58876] hover:text-[#FDF8F3]' : 'text-[#8A7E7A] hover:text-[#2A2421]'
+                          }`}
+                        >
+                          {showOldPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* New Password */}
+                    <div>
+                      <label className={`block text-xs font-bold uppercase mb-2 transition-colors ${
+                        isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+                      }`}>
+                        Új jelszó
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={passwordData.newPassword}
+                          onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                          className={`w-full px-4 py-2 pr-10 rounded-lg transition-colors ${
+                            isDarkMode
+                              ? 'bg-[#4A2C24]/50 border border-[#4A2C24] text-[#FDF8F3] focus:border-[#D0705B] focus:outline-none'
+                              : 'bg-white border border-[#E8DCD1] text-[#2A2421] focus:border-[#D0705B] focus:outline-none'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${
+                            isDarkMode ? 'text-[#A58876] hover:text-[#FDF8F3]' : 'text-[#8A7E7A] hover:text-[#2A2421]'
+                          }`}
+                        >
+                          {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div>
+                      <label className={`block text-xs font-bold uppercase mb-2 transition-colors ${
+                        isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+                      }`}>
+                        Jelszó megerősítése
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                          className={`w-full px-4 py-2 pr-10 rounded-lg transition-colors ${
+                            isDarkMode
+                              ? 'bg-[#4A2C24]/50 border border-[#4A2C24] text-[#FDF8F3] focus:border-[#D0705B] focus:outline-none'
+                              : 'bg-white border border-[#E8DCD1] text-[#2A2421] focus:border-[#D0705B] focus:outline-none'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${
+                            isDarkMode ? 'text-[#A58876] hover:text-[#FDF8F3]' : 'text-[#8A7E7A] hover:text-[#2A2421]'
+                          }`}
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className={`border-t transition-colors p-6 flex gap-3 ${isDarkMode ? 'bg-[#2A2421]/50 border-[#4A2C24]/30' : 'bg-white/50 border-[#E8DCD1]/30'}`}>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handlePasswordChange}
+                      className="flex-1 px-4 py-2 rounded-lg bg-[#D0705B] text-white font-medium hover:bg-[#B85F4C] transition-colors"
+                    >
+                      Mentés
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setIsPasswordModalOpen(false)}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        isDarkMode
+                          ? 'bg-[#4A2C24]/30 text-[#FDF8F3] hover:bg-[#4A2C24]/50'
+                          : 'bg-[#E8DCD1]/30 text-[#2A2421] hover:bg-[#E8DCD1]/50'
+                      }`}
+                    >
+                      Mégse
+                    </motion.button>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </>
       )}
     </AnimatePresence>
