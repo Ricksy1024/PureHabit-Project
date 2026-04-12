@@ -1,0 +1,395 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Bell, Lock, User, Palette, LogOut, Save, ChevronRight } from 'lucide-react';
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  isDarkMode: boolean;
+  setIsDarkMode: (value: boolean) => void;
+}
+
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  isDarkMode,
+  setIsDarkMode,
+}) => {
+  const [activeTab, setActiveTab] = useState('profile');
+  const [formData, setFormData] = useState({
+    name: 'Alex Morgan',
+    email: 'alex.morgan@example.com',
+    phone: '+1 (555) 123-4567',
+  });
+  const [notifications, setNotifications] = useState({
+    dailyReminder: true,
+    weeklyReport: true,
+    achievements: true,
+    updates: false,
+  });
+
+  const handleSave = () => {
+    // Save logic here
+    console.log('Settings saved:', { formData, notifications });
+  };
+
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: <User className="w-5 h-5" /> },
+    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-5 h-5" /> },
+    { id: 'appearance', label: 'Appearance', icon: <Palette className="w-5 h-5" /> },
+    { id: 'security', label: 'Security', icon: <Lock className="w-5 h-5" /> },
+  ];
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/40 z-40"
+          />
+          <motion.div
+            initial={{ opacity: 0, x: -400 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -400 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className={`fixed left-0 top-0 h-screen w-96 rounded-r-3xl soft-shadow z-50 transition-colors duration-500 ${
+              isDarkMode ? 'bg-[#2A2421]' : 'bg-[#FAF5F0]'
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-[#D0705B]/20">
+              <h2 className={`text-2xl font-serif font-bold transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                Settings
+              </h2>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDarkMode ? 'hover:bg-[#4A2C24] text-[#FDF8F3]' : 'hover:bg-[#E8DCD1] text-[#2A2421]'
+                }`}
+              >
+                <X className="w-6 h-6" />
+              </motion.button>
+            </div>
+
+            {/* Tabs */}
+            <div className={`flex gap-1 px-4 py-4 border-b transition-colors ${
+              isDarkMode ? 'bg-[#2A2421]/50 border-[#4A2C24]/30' : 'bg-[#FAF5F0]/50 border-[#E8DCD1]/30'
+            }`}>
+              <div className="flex gap-2 overflow-x-auto">
+                {tabs.map((tab) => (
+                  <motion.button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    whileTap={{ scale: 0.95 }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-colors text-sm font-medium ${
+                      activeTab === tab.id
+                        ? 'bg-[#D0705B] text-white shadow-md'
+                        : isDarkMode
+                        ? 'text-[#A58876] hover:bg-[#4A2C24]'
+                        : 'text-[#8A7E7A] hover:bg-[#E8DCD1]'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Profile Tab */}
+              {activeTab === 'profile' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="space-y-6"
+                >
+                  {/* Profile Picture */}
+                  <div className="flex flex-col items-center gap-4">
+                    <div className={`w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center border-4 transition-colors ${
+                      isDarkMode ? 'border-[#D0705B] bg-[#4A2C24]' : 'border-[#D0705B] bg-[#FDECE8]'
+                    }`}>
+                      <img
+                        src="https://picsum.photos/seed/alex/200/200"
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-4 py-2 rounded-lg bg-[#D0705B] text-white text-sm font-medium hover:bg-[#B85F4C] transition-colors"
+                    >
+                      Change Photo
+                    </motion.button>
+                  </div>
+
+                  {/* Form Fields */}
+                  <div>
+                    <label className={`block text-xs font-bold uppercase mb-2 transition-colors ${
+                      isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+                    }`}>
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className={`w-full px-4 py-2 rounded-lg transition-colors ${
+                        isDarkMode
+                          ? 'bg-[#4A2C24]/50 border border-[#4A2C24] text-[#FDF8F3] focus:border-[#D0705B] focus:outline-none'
+                          : 'bg-white border border-[#E8DCD1] text-[#2A2421] focus:border-[#D0705B] focus:outline-none'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-bold uppercase mb-2 transition-colors ${
+                      isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+                    }`}>
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className={`w-full px-4 py-2 rounded-lg transition-colors ${
+                        isDarkMode
+                          ? 'bg-[#4A2C24]/50 border border-[#4A2C24] text-[#FDF8F3] focus:border-[#D0705B] focus:outline-none'
+                          : 'bg-white border border-[#E8DCD1] text-[#2A2421] focus:border-[#D0705B] focus:outline-none'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-bold uppercase mb-2 transition-colors ${
+                      isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+                    }`}>
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className={`w-full px-4 py-2 rounded-lg transition-colors ${
+                        isDarkMode
+                          ? 'bg-[#4A2C24]/50 border border-[#4A2C24] text-[#FDF8F3] focus:border-[#D0705B] focus:outline-none'
+                          : 'bg-white border border-[#E8DCD1] text-[#2A2421] focus:border-[#D0705B] focus:outline-none'
+                      }`}
+                    />
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Notifications Tab */}
+              {activeTab === 'notifications' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="space-y-4"
+                >
+                  {[
+                    { key: 'dailyReminder', label: 'Daily Reminders', desc: 'Get reminded about your daily habits' },
+                    { key: 'weeklyReport', label: 'Weekly Report', desc: 'Receive your weekly summary' },
+                    { key: 'achievements', label: 'Achievements', desc: 'Celebrate your milestones' },
+                    { key: 'updates', label: 'App Updates', desc: 'Get notified about new features' },
+                  ].map((notif) => (
+                    <motion.div
+                      key={notif.key}
+                      whileHover={{ x: 5 }}
+                      className={`flex items-center justify-between p-4 rounded-lg transition-colors ${
+                        isDarkMode ? 'bg-[#4A2C24]/30 hover:bg-[#4A2C24]/50' : 'bg-[#E8DCD1]/30 hover:bg-[#E8DCD1]/50'
+                      }`}
+                    >
+                      <div>
+                        <p className={`font-medium transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                          {notif.label}
+                        </p>
+                        <p className={`text-xs transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+                          {notif.desc}
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifications[notif.key as keyof typeof notifications]}
+                          onChange={(e) =>
+                            setNotifications({
+                              ...notifications,
+                              [notif.key]: e.target.checked,
+                            })
+                          }
+                          className="sr-only peer"
+                        />
+                        <div className={`w-11 h-6 rounded-full peer transition-colors ${
+                          notifications[notif.key as keyof typeof notifications]
+                            ? 'bg-[#D0705B]'
+                            : isDarkMode
+                            ? 'bg-[#4A2C24]'
+                            : 'bg-[#E8DCD1]'
+                        }`}></div>
+                        <span className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all peer-checked:translate-x-5 ${
+                          notifications[notif.key as keyof typeof notifications]
+                            ? 'bg-white'
+                            : isDarkMode
+                            ? 'bg-[#A58876]'
+                            : 'bg-[#8A7E7A]'
+                        }`}></span>
+                      </label>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+
+              {/* Appearance Tab */}
+              {activeTab === 'appearance' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <p className={`text-sm font-bold mb-4 transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                      Theme
+                    </p>
+                    <div className="flex gap-4">
+                      {[
+                        { id: 'light', label: 'Light', icon: '☀️' },
+                        { id: 'dark', label: 'Dark', icon: '🌙' },
+                      ].map((theme) => (
+                        <motion.button
+                          key={theme.id}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setIsDarkMode(theme.id === 'dark')}
+                          className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-lg transition-colors ${
+                            (theme.id === 'dark' && isDarkMode) || (theme.id === 'light' && !isDarkMode)
+                              ? 'bg-[#D0705B] text-white shadow-md'
+                              : isDarkMode
+                              ? 'bg-[#4A2C24]/30 text-[#FDF8F3] hover:bg-[#4A2C24]/50'
+                              : 'bg-[#E8DCD1]/30 text-[#2A2421] hover:bg-[#E8DCD1]/50'
+                          }`}
+                        >
+                          <span className="text-2xl">{theme.icon}</span>
+                          <span className="text-xs font-medium">{theme.label}</span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={`p-4 rounded-lg transition-colors ${
+                    isDarkMode ? 'bg-[#4A2C24]/30' : 'bg-[#E8DCD1]/30'
+                  }`}>
+                    <p className={`text-sm transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+                      ✨ More theme options coming soon!
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Security Tab */}
+              {activeTab === 'security' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="space-y-4"
+                >
+                  <motion.button
+                    whileHover={{ x: 5 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-full flex items-center justify-between p-4 rounded-lg transition-colors ${
+                      isDarkMode ? 'bg-[#4A2C24]/30 hover:bg-[#4A2C24]/50' : 'bg-[#E8DCD1]/30 hover:bg-[#E8DCD1]/50'
+                    }`}
+                  >
+                    <div>
+                      <p className={`font-medium transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                        Change Password
+                      </p>
+                      <p className={`text-xs transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+                        Update your password regularly
+                      </p>
+                    </div>
+                    <ChevronRight className={`w-5 h-5 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`} />
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ x: 5 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-full flex items-center justify-between p-4 rounded-lg transition-colors ${
+                      isDarkMode ? 'bg-[#4A2C24]/30 hover:bg-[#4A2C24]/50' : 'bg-[#E8DCD1]/30 hover:bg-[#E8DCD1]/50'
+                    }`}
+                  >
+                    <div>
+                      <p className={`font-medium transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                        Two-Factor Authentication
+                      </p>
+                      <p className={`text-xs transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+                        Enable for extra security
+                      </p>
+                    </div>
+                    <ChevronRight className={`w-5 h-5 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`} />
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ x: 5 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-full flex items-center justify-between p-4 rounded-lg transition-colors ${
+                      isDarkMode ? 'bg-[#4A2C24]/30 hover:bg-[#4A2C24]/50' : 'bg-[#E8DCD1]/30 hover:bg-[#E8DCD1]/50'
+                    }`}
+                  >
+                    <div>
+                      <p className={`font-medium transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                        Active Sessions
+                      </p>
+                      <p className={`text-xs transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+                        Manage your logged-in devices
+                      </p>
+                    </div>
+                    <ChevronRight className={`w-5 h-5 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`} />
+                  </motion.button>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className={`border-t transition-colors p-6 space-y-3 ${isDarkMode ? 'bg-[#2A2421]/50 border-[#4A2C24]/30' : 'bg-white/50 border-[#E8DCD1]/30'}`}>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSave}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#D0705B] text-white font-medium hover:bg-[#B85F4C] transition-colors shadow-md"
+              >
+                <Save className="w-4 h-4" />
+                Save Changes
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#EF5350]/20 text-[#EF5350] hover:bg-[#EF5350]/30'
+                    : 'bg-[#EF5350]/10 text-[#EF5350] hover:bg-[#EF5350]/20'
+                }`}
+              >
+                <LogOut className="w-4 h-4" />
+                Log Out
+              </motion.button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};

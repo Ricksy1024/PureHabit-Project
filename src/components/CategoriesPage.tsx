@@ -22,9 +22,10 @@ interface CategoryItemProps {
   expanded: boolean;
   onToggle: () => void;
   onEdit: (habit: Habit) => void;
+  onEditCategory: (category: string) => void;
 }
 
-const CategoryItem = ({ category, habits, isDarkMode, expanded, onToggle, onEdit }: CategoryItemProps) => (
+const CategoryItem = ({ category, habits, isDarkMode, expanded, onToggle, onEdit, onEditCategory }: CategoryItemProps) => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
@@ -32,13 +33,14 @@ const CategoryItem = ({ category, habits, isDarkMode, expanded, onToggle, onEdit
       isDarkMode ? 'bg-[#2A2421]/70' : 'bg-[#FAF5F0]/70'
     }`}
   >
-    <motion.button
-      onClick={onToggle}
-      className={`w-full px-6 py-4 flex items-center justify-between transition-colors ${
-        isDarkMode ? 'hover:bg-[#2A2421]/90' : 'hover:bg-[#FAF5F0]/90'
-      }`}
+    <div className={`w-full px-6 py-4 flex items-center justify-between transition-colors ${
+      isDarkMode ? 'hover:bg-[#2A2421]/90' : 'hover:bg-[#FAF5F0]/90'
+    }`}
     >
-      <div className="flex items-center gap-4 flex-1">
+      <motion.button
+        onClick={onToggle}
+        className="flex items-center gap-4 flex-1 text-left"
+      >
         <span className={`text-sm font-bold px-3 py-1 rounded-lg transition-colors ${
           isDarkMode ? 'bg-[#D0705B]/20 text-[#D0705B]' : 'bg-[#D0705B]/10 text-[#D0705B]'
         }`}>
@@ -49,16 +51,28 @@ const CategoryItem = ({ category, habits, isDarkMode, expanded, onToggle, onEdit
         }`}>
           {category}
         </h3>
+      </motion.button>
+      <div className="flex items-center gap-2">
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => onEditCategory(category)}
+          className={`p-2 rounded-lg transition-colors shrink-0 ${
+            isDarkMode ? 'bg-[#D0705B]/20 text-[#D0705B] hover:bg-[#D0705B]/30' : 'bg-[#D0705B]/10 text-[#D0705B] hover:bg-[#D0705B]/20'
+          }`}
+        >
+          <Edit2 className="w-4 h-4" />
+        </motion.button>
+        <motion.div
+          animate={{ rotate: expanded ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <ChevronDown className={`w-5 h-5 transition-colors ${
+            isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+          }`} />
+        </motion.div>
       </div>
-      <motion.div
-        animate={{ rotate: expanded ? 180 : 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <ChevronDown className={`w-5 h-5 transition-colors ${
-          isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
-        }`} />
-      </motion.div>
-    </motion.button>
+    </div>
 
     <AnimatePresence>
       {expanded && (
@@ -124,9 +138,10 @@ interface CategoriesPageProps {
   isDarkMode: boolean;
   habits: Habit[];
   onEdit: (habit: Habit) => void;
+  onEditCategory: (category: string) => void;
 }
 
-export const CategoriesPage = ({ isDarkMode, habits, onEdit }: CategoriesPageProps) => {
+export const CategoriesPage = ({ isDarkMode, habits, onEdit, onEditCategory }: CategoriesPageProps) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   // Group habits by category
@@ -179,6 +194,7 @@ export const CategoriesPage = ({ isDarkMode, habits, onEdit }: CategoriesPagePro
                   expanded={expandedCategories.has(category)}
                   onToggle={() => toggleCategory(category)}
                   onEdit={onEdit}
+                  onEditCategory={onEditCategory}
                 />
               ))
             ) : (

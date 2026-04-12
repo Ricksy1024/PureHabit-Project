@@ -12,8 +12,11 @@ import { ShaderBackground } from './components/ShaderBackground';
 import { StatisticsPage } from './components/StatisticsPage';
 import { AddActivityModal, NewActivity } from './components/AddActivityModal';
 import { EditActivityModal, ActivityToEdit, EditedActivity } from './components/EditActivityModal';
+import { EditCategoryModal } from './components/EditCategoryModal';
 import { HabitsPage } from './components/HabitsPage';
 import { CategoriesPage } from './components/CategoriesPage';
+import { StreakPage } from './components/StreakPage';
+import { SettingsModal } from './components/SettingsModal';
 
 const ICON_MAP = {
   'Activity': Activity,
@@ -30,7 +33,7 @@ const ICON_MAP = {
   'Target': Target,
 };
 
-const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void }) => (
+const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onSettingsClick }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onSettingsClick: () => void }) => (
   <aside className={`w-64 h-screen flex flex-col px-6 py-8 backdrop-blur-sm border-r transition-colors duration-500 ${isDarkMode ? 'bg-black/20 border-[#4A2C24]/30' : 'bg-white/10 border-[#EADCCF]/20'}`}>
     <div className={`flex items-center gap-2 mb-12 px-2 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
       <Sparkles className="w-6 h-6" />
@@ -42,7 +45,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab }: { isDar
       <NavItem icon={<BarChart2 />} label="Statistics" active={activeTab === 'Statistics'} onClick={() => setActiveTab('Statistics')} isDarkMode={isDarkMode} />
       <NavItem icon={<CheckSquare />} label="Habits" active={activeTab === 'Habits'} onClick={() => setActiveTab('Habits')} isDarkMode={isDarkMode} />
       <NavItem icon={<Folder />} label="Categories" active={activeTab === 'Categories'} onClick={() => setActiveTab('Categories')} isDarkMode={isDarkMode} />
-      <NavItem icon={<Flame />} label="Streak" isDarkMode={isDarkMode} />
+      <NavItem icon={<Flame />} label="Streak" active={activeTab === 'Streak'} onClick={() => setActiveTab('Streak')} isDarkMode={isDarkMode} />
     </nav>
 
     <div className="mt-auto space-y-8 px-2">
@@ -50,16 +53,21 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab }: { isDar
         <ThemeToggle isDark={isDarkMode} setIsDark={setIsDarkMode} />
       </div>
 
-      <div className={`flex items-center gap-3 p-2 -mx-2 rounded-2xl transition-all duration-500 ${isDarkMode ? 'bg-[#2A2421]/80 border border-[#4A2C24]/50 shadow-lg' : 'border border-transparent hover:bg-[#E8DCD1]/30'}`}>
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={onSettingsClick}
+        className={`w-full flex items-center gap-3 p-2 -mx-2 rounded-2xl transition-all duration-500 ${isDarkMode ? 'bg-[#2A2421]/80 border border-[#4A2C24]/50 shadow-lg hover:bg-[#2A2421]' : 'border border-transparent hover:bg-[#E8DCD1]/30'}`}
+      >
         <div className="w-10 h-10 rounded-xl bg-[#D0705B]/20 flex items-center justify-center overflow-hidden">
           <img src="https://picsum.photos/seed/alex/100/100" alt="Alex Morgan" className="w-full h-full object-cover opacity-90" referrerPolicy="no-referrer" />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 text-left">
           <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Alex Morgan</p>
           <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>Pro Member</p>
         </div>
         <Settings className={`w-4 h-4 cursor-pointer hover:rotate-90 transition-all duration-300 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`} />
-      </div>
+      </motion.button>
     </div>
   </aside>
 );
@@ -363,7 +371,7 @@ const CategoriesWidget = ({ isDarkMode }: { isDarkMode: boolean }) => {
   );
 };
 
-const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boolean, pageType?: 'dashboard' | 'habits' | 'categories' }) => {
+const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boolean, pageType?: 'dashboard' | 'habits' | 'categories' | 'streak' }) => {
   const [range, setRange] = useState('Today');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewDate, setViewDate] = useState(new Date());
@@ -371,6 +379,8 @@ const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boole
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
 
   const handleSetRange = (r: string) => {
     setRange(r);
@@ -469,6 +479,24 @@ const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boole
     setWeeklyHabits(weeklyHabits.filter(h => h.id !== id));
   };
 
+  const handleEditCategory = (category: string) => {
+    setEditingCategory(category);
+    setIsEditCategoryModalOpen(true);
+  };
+
+  const handleSaveEditedCategory = (oldName: string, newName: string) => {
+    // Update all habits with the old category name to the new category name
+    const updatedHabits = weeklyHabits.map(habit => {
+      if (habit.category === oldName) {
+        return { ...habit, category: newName };
+      }
+      return habit;
+    });
+    setWeeklyHabits(updatedHabits);
+    setIsEditCategoryModalOpen(false);
+    setEditingCategory(null);
+  };
+
   const getDayProgress = (date: Date) => {
     const habitsForDay = getHabitsForDate(date);
     return habitsForDay.length > 0 ? Math.round((habitsForDay.filter(h => h.done).length / habitsForDay.length) * 100) : 0;
@@ -518,6 +546,45 @@ const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boole
           isDarkMode={isDarkMode}
           habits={weeklyHabits}
           onEdit={handleEditHabit}
+          onEditCategory={handleEditCategory}
+        />
+        <EditActivityModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={handleSaveEditedHabit}
+          isDarkMode={isDarkMode}
+          activity={
+            editingHabit
+              ? {
+                  id: editingHabit.id,
+                  name: editingHabit.title,
+                  metric: editingHabit.metric,
+                  category: editingHabit.category || 'Health',
+                  iconName: editingHabit.iconName || 'Activity',
+                  days: editingHabit.applicableDays || []
+                }
+              : null
+          }
+        />
+        <EditCategoryModal
+          isOpen={isEditCategoryModalOpen}
+          onClose={() => setIsEditCategoryModalOpen(false)}
+          onSave={handleSaveEditedCategory}
+          isDarkMode={isDarkMode}
+          categoryName={editingCategory}
+        />
+      </>
+    );
+  }
+
+  if (pageType === 'streak') {
+    return (
+      <>
+        <StreakPage
+          isDarkMode={isDarkMode}
+          habits={weeklyHabits}
+          onEdit={handleEditHabit}
+          onDelete={handleDeleteHabit}
         />
         <EditActivityModal
           isOpen={isEditModalOpen}
@@ -574,11 +641,12 @@ const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boole
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('Dashboard');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
     <ShaderBackground isDarkMode={isDarkMode}>
       <div className={`flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} activeTab={activeTab} setActiveTab={setActiveTab} onSettingsClick={() => setIsSettingsOpen(true)} />
         {activeTab === 'Dashboard' ? (
           <MainContent isDarkMode={isDarkMode} pageType="dashboard" />
         ) : activeTab === 'Statistics' ? (
@@ -587,10 +655,18 @@ export default function App() {
           <MainContent isDarkMode={isDarkMode} pageType="habits" />
         ) : activeTab === 'Categories' ? (
           <MainContent isDarkMode={isDarkMode} pageType="categories" />
+        ) : activeTab === 'Streak' ? (
+          <MainContent isDarkMode={isDarkMode} pageType="streak" />
         ) : (
           <MainContent isDarkMode={isDarkMode} pageType="dashboard" />
         )}
       </div>
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
+      />
     </ShaderBackground>
   );
 }
