@@ -47,6 +47,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const PROFILE_RETRY_INTERVAL_MS = 7000;
+const PROFILE_RETRY_TIMEOUT_MS = 60 * 1000;
+
 function loadingState(message: string | null): AuthState {
   return {
     status: 'loading',
@@ -69,6 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getRateLimitState(),
   );
   const sequenceRef = useRef(0);
+  const profileRetryWindowRef = useRef<{
+    uid: string;
+    startedAt: number;
+  } | null>(null);
 
   const applyUserState = useCallback(
     async (
@@ -80,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentSequence = ++sequenceRef.current;
 
       if (!incomingUser) {
+        profileRetryWindowRef.current = null;
         setAuthState(unauthenticatedState(null));
         return;
       }
@@ -120,9 +128,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (profileResult.sessionInvalid) {
+          profileRetryWindowRef.current = null;
           await signOutUser();
           setAuthState(unauthenticatedState(profileResult.message));
           return;
+        }
+
+        if (profileResult.profileStatus === 'loading') {
+          const existingWindow = profileRetryWindowRef.current;
+          if (!existingWindow || existingWindow.uid !== user.uid) {
+            profileRetryWindowRef.current = {
+              uid: user.uid,
+              startedAt: Date.now(),
+            };
+          }
+
+          const retryWindow = profileRetryWindowRef.current;
+          if (
+            retryWindow &&
+            Date.now() - retryWindow.startedAt >= PROFILE_RETRY_TIMEOUT_MS
+          ) {
+            profileRetryWindowRef.current = null;
+            setAuthState({
+              status: 'authenticated_ready',
+              user,
+              security: relaxedSecurity,
+              profile: null,
+              profileStatus: 'ready',
+              message: null,
+            });
+            return;
+          }
+        } else {
+          profileRetryWindowRef.current = null;
         }
 
         setAuthState({
@@ -138,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           message: profileResult.message,
         });
       } catch (_error) {
+        profileRetryWindowRef.current = null;
         setAuthState(
           unauthenticatedState('Your session is no longer valid. Please sign in again.'),
         );
@@ -158,10 +197,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyUserState]);
 
   useEffect(() => {
+    const canRetryProfileLoading =
+      authState.status === 'authenticated_ready' &&
+      authState.profileStatus === 'loading' &&
+      (() => {
+        const retryWindow = profileRetryWindowRef.current;
+        if (!retryWindow) {
+          return true;
+        }
+
+        return Date.now() - retryWindow.startedAt < PROFILE_RETRY_TIMEOUT_MS;
+      })();
+
     const shouldPollForUpdates =
-      authState.status === 'authenticated_pending' ||
-      (authState.status === 'authenticated_ready' &&
-        authState.profileStatus === 'loading');
+      authState.status === 'authenticated_pending' || canRetryProfileLoading;
 
     if (!shouldPollForUpdates) {
       return;
@@ -169,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const interval = window.setInterval(() => {
       void applyUserState(auth.currentUser, { forceRefresh: true });
-    }, 5000);
+    }, PROFILE_RETRY_INTERVAL_MS);
 
     return () => {
       window.clearInterval(interval);
@@ -207,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await signOutUser();
 
     if (result.ok) {
+      profileRetryWindowRef.current = null;
       sequenceRef.current += 1;
       setAuthState(unauthenticatedState(null));
     }

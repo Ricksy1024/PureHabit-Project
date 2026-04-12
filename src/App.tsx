@@ -73,10 +73,10 @@ const NavItem = ({ icon, label, active = false, onClick, isDarkMode }: { icon: R
   </a>
 );
 
-const Header = ({ range, setRange, currentDate, isDarkMode }: { range: string, setRange: (r: string) => void, currentDate: Date, isDarkMode: boolean }) => (
+const Header = ({ range, setRange, currentDate, isDarkMode, userDisplayName }: { range: string, setRange: (r: string) => void, currentDate: Date, isDarkMode: boolean, userDisplayName: string }) => (
   <div className="flex justify-between items-end">
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className={`font-serif text-4xl font-medium mb-1 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Good Morning, Alex</h1>
+      <h1 className={`font-serif text-4xl font-medium mb-1 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Good Morning, {userDisplayName}</h1>
       <p className={`text-sm transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#2A2421]'}`}>{format(currentDate, 'EEEE, MMMM d, yyyy')}</p>
     </motion.div>
     <div className={`flex backdrop-blur-md rounded-full p-1 soft-shadow relative transition-colors duration-500 ${isDarkMode ? 'bg-[#2A2421]/60' : 'bg-[#FAF5F0]/60'}`}>
@@ -344,7 +344,7 @@ const CategoriesWidget = ({ isDarkMode }: { isDarkMode: boolean }) => {
   );
 };
 
-const MainContent = ({ isDarkMode, showProfileLoading }: { isDarkMode: boolean, showProfileLoading: boolean }) => {
+const MainContent = ({ isDarkMode, showProfileLoading, userDisplayName }: { isDarkMode: boolean, showProfileLoading: boolean, userDisplayName: string }) => {
   const [range, setRange] = useState('Today');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewDate, setViewDate] = useState(new Date());
@@ -417,7 +417,7 @@ const MainContent = ({ isDarkMode, showProfileLoading }: { isDarkMode: boolean, 
             {AUTH_COPY.shellProfileLoading}
           </div>
         )}
-        <Header range={range} setRange={handleSetRange} currentDate={selectedDate} isDarkMode={isDarkMode} />
+        <Header range={range} setRange={handleSetRange} currentDate={selectedDate} isDarkMode={isDarkMode} userDisplayName={userDisplayName} />
         
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -566,6 +566,22 @@ export default function App() {
     authState.status === 'authenticated_ready' &&
     authState.profileStatus === 'loading';
 
+  const userDisplayName = (() => {
+    if (
+      authState.status !== 'authenticated_ready' &&
+      authState.status !== 'authenticated_pending'
+    ) {
+      return 'Alex';
+    }
+
+    const displayName = authState.user.displayName?.trim();
+    if (displayName) {
+      return displayName;
+    }
+
+    return 'Alex';
+  })();
+
   return (
     <ShaderBackground isDarkMode={isDarkMode}>
       <div className={`flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
@@ -580,11 +596,11 @@ export default function App() {
         />
         {isAuthorized ? (
           activeTab === 'Dashboard' ? (
-            <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} />
+            <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} />
           ) : activeTab === 'Statistics' ? (
             <StatisticsPage isDarkMode={isDarkMode} />
           ) : (
-            <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} />
+            <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} />
           )
         ) : (
           <AuthGatePanel
