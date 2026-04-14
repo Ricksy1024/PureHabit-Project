@@ -4,14 +4,16 @@ title = "PureHabit gitleaks config"
 useDefault = true
 
 [[allowlists]]
-description = "Allow deterministic TOTP test secret in unit test"
+description = "Allow deterministic TOTP test secrets in unit tests"
 condition = "AND"
 regexTarget = "match"
 regexes = [
   '''JBSWY3DPEHPK3PXP''',
+  '''GEZDGNBVGY3TQOJQ''',
 ]
 paths = [
   '''^functions/tests/handlers/test_api\.js$''',
+  '''^functions/tests/core/test_auth\.js$''',
 ]
 
 [[allowlists]]

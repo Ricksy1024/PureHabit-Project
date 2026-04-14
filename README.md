@@ -136,6 +136,9 @@ npm test
 
 ## Security: secret scan (ajanlott publikalas elott)
 
+0. Dev container ujraepiteskor a pinelt `gitleaks 8.30.1` automatikusan telepul a
+	`.devcontainer/devcontainer.json` `postCreateCommand` lepeseben.
+
 1. Lokalis pre-commit hook telepitese:
 
 ```bash

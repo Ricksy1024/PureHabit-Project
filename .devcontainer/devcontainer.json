@@ -14,7 +14,7 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "npm install && curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=\"$HOME/.local/bin\" sh && $HOME/.local/bin/uv tool install specify-cli --from git+https://github.com/github/spec-kit.git || true",
+  "postCreateCommand": "npm install && bash scripts/install-gitleaks-fixed.sh && curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=\"$HOME/.local/bin\" sh && $HOME/.local/bin/uv tool install specify-cli --from git+https://github.com/github/spec-kit.git || true",
   "postStartCommand": "mkdir -p ~/.gemini/antigravity && cp .devcontainer/mcp_config.json ~/.gemini/antigravity/mcp_config.json",
   "customizations": {
     "vscode": {
