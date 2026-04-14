@@ -9,6 +9,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "security:secrets": "bash scripts/secret-scan.sh",
+    "security:enable-github": "bash scripts/enable-github-secret-scanning.sh",
+    "hooks:install": "bash scripts/install-git-hooks.sh",
     "test:frontend": "vitest run",
     "test:frontend:watch": "vitest",
     "test": "npm --prefix /workspaces/PureHabit-Project run test:frontend && npm --prefix /workspaces/PureHabit-Project/functions test"

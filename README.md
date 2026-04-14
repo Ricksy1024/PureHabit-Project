@@ -133,3 +133,31 @@ Frontend: http://localhost:3000
 npm run lint
 npm test
 ```
+
+## Security: secret scan (ajanlott publikalas elott)
+
+1. Lokalis pre-commit hook telepitese:
+
+```bash
+npm run hooks:install
+```
+
+2. Teljes repo titokszkenneles futtatasa:
+
+```bash
+npm run security:secrets
+```
+
+3. CI-ben automatikusan is fut a szkenneles minden push/PR eseten a
+	[.github/workflows/secret-scan.yml](.github/workflows/secret-scan.yml) workflow-val.
+
+4. GitHub Secret Scanning + Push Protection egy paranccsal (repo admin tokennel):
+
+```bash
+export GITHUB_TOKEN=<repo_admin_token>
+npm run security:enable-github
+```
+
+5. Ha inkabb UI-bol kapcsolnad be:
+	Settings -> Security -> Code security and analysis ->
+	Secret scanning es Secret scanning push protection.

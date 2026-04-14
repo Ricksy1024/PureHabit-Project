@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "Running gitleaks on staged changes..."
+  gitleaks protect --staged --redact --verbose --config .gitleaks.toml
+  exit 0
+fi
+
+echo "gitleaks not installed; running fallback staged regex scan..."
+
+STAGED_DIFF="$(git diff --cached -U0 --no-color || true)"
+PATTERN='AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk_live_[0-9A-Za-z]{10,}|BEGIN (RSA |EC |DSA |OPENSSH |)?PRIVATE KEY|"type"[[:space:]]*:[[:space:]]*"service_account"|"private_key"|"client_email"'
+
+if echo "$STAGED_DIFF" | grep -nE "$PATTERN" >/tmp/purehabit-precommit-secrets.txt; then
+  echo "Potential secret detected in staged changes:"
+  sed -n '1,40p' /tmp/purehabit-precommit-secrets.txt
+  echo "Commit blocked. Install gitleaks for full scanning coverage."
+  exit 1
+fi
+
+echo "Fallback staged scan passed."
