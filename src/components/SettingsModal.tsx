@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, Lock, User, Palette, LogOut, Save, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { X, Bell, Lock, User, Palette, LogOut, LogIn, Save, ChevronRight, Eye, EyeOff } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   isDarkMode: boolean;
   setIsDarkMode: (value: boolean) => void;
+  isAuthenticated: boolean;
+  onAuthAction: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -14,6 +16,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   isDarkMode,
   setIsDarkMode,
+  isAuthenticated,
+  onAuthAction,
 }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [formData, setFormData] = useState({
@@ -477,14 +481,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={onAuthAction}
                 className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#EF5350]/20 text-[#EF5350] hover:bg-[#EF5350]/30'
-                    : 'bg-[#EF5350]/10 text-[#EF5350] hover:bg-[#EF5350]/20'
+                  isAuthenticated
+                    ? isDarkMode
+                      ? 'bg-[#EF5350]/20 text-[#EF5350] hover:bg-[#EF5350]/30'
+                      : 'bg-[#EF5350]/10 text-[#EF5350] hover:bg-[#EF5350]/20'
+                    : isDarkMode
+                    ? 'bg-[#D0705B]/20 text-[#FDF8F3] hover:bg-[#D0705B]/30'
+                    : 'bg-[#D0705B]/10 text-[#B85F4C] hover:bg-[#D0705B]/20'
                 }`}
               >
-                <LogOut className="w-4 h-4" />
-                Log Out
+                {isAuthenticated ? <LogOut className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
+                {isAuthenticated ? 'Log Out' : 'Sign In'}
               </motion.button>
             </div>
           </motion.div>

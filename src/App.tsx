@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import { 
   Sparkles, LayoutDashboard, BarChart2, CheckSquare, Folder, Flame, 
   Moon, Settings, Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical,
-  Activity, Apple, Dumbbell, Book, Heart, Coffee, Smile, Music, Zap, Target
+  Activity, Apple, Dumbbell, Book, Heart, Coffee, Smile, Music, Zap, Target, LogIn, LogOut, ShieldAlert
 } from 'lucide-react';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ShaderBackground } from './components/ShaderBackground';
@@ -17,6 +17,10 @@ import { HabitsPage } from './components/HabitsPage';
 import { CategoriesPage } from './components/CategoriesPage';
 import { StreakPage } from './components/StreakPage';
 import { SettingsModal } from './components/SettingsModal';
+import { AuthModal } from './components/AuthModal';
+import { useAuth } from './hooks/useAuth';
+import type { AuthState } from './types/auth';
+import { AUTH_COPY, VERIFICATION_STEP_COPY } from './constants/authCopy';
 
 const ICON_MAP = {
   'Activity': Activity,
@@ -34,12 +38,6 @@ const ICON_MAP = {
 };
 
 const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onSettingsClick }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onSettingsClick: () => void }) => (
-import { AuthModal } from './components/AuthModal';
-import { useAuth } from './hooks/useAuth';
-import type { AuthState } from './types/auth';
-import { AUTH_COPY, VERIFICATION_STEP_COPY } from './constants/authCopy';
-
-const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAuthModal, isAuthenticated }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onOpenAuthModal: () => void, isAuthenticated: boolean }) => (
   <aside className={`w-64 h-screen flex flex-col px-6 py-8 backdrop-blur-sm border-r transition-colors duration-500 ${isDarkMode ? 'bg-black/20 border-[#4A2C24]/30' : 'bg-white/10 border-[#EADCCF]/20'}`}>
     <div className={`flex items-center gap-2 mb-12 px-2 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
       <Sparkles className="w-6 h-6" />
@@ -376,7 +374,17 @@ const CategoriesWidget = ({ isDarkMode }: { isDarkMode: boolean }) => {
   );
 };
 
-const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boolean, pageType?: 'dashboard' | 'habits' | 'categories' | 'streak' }) => {
+const MainContent = ({
+  isDarkMode,
+  showProfileLoading,
+  userDisplayName,
+  pageType = 'dashboard',
+}: {
+  isDarkMode: boolean;
+  showProfileLoading: boolean;
+  userDisplayName: string;
+  pageType?: 'dashboard' | 'habits' | 'categories' | 'streak';
+}) => {
   const [range, setRange] = useState('Today');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewDate, setViewDate] = useState(new Date());
@@ -809,6 +817,7 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const isAuthenticated =
     authState.status === 'authenticated_ready' ||
@@ -820,6 +829,7 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) {
       setIsAuthOpen(true);
+      setIsSettingsOpen(false);
       setActiveTab('Dashboard');
     }
   }, [isAuthenticated]);
@@ -827,10 +837,21 @@ export default function App() {
   const handleAuthAction = () => {
     if (isAuthenticated) {
       void signOut();
+      setIsSettingsOpen(false);
+      setIsAuthOpen(true);
       return;
     }
 
+    setIsSettingsOpen(false);
     setIsAuthOpen(true);
+  };
+
+  const handleCloseAuthModal = () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    setIsAuthOpen(false);
   };
 
   const showProfileLoading =
@@ -857,18 +878,27 @@ export default function App() {
     <ShaderBackground isDarkMode={isDarkMode}>
       <div className={`flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
         <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} activeTab={activeTab} setActiveTab={setActiveTab} onSettingsClick={() => setIsSettingsOpen(true)} />
-        {activeTab === 'Dashboard' ? (
-          <MainContent isDarkMode={isDarkMode} pageType="dashboard" />
+        {authState.status === 'loading' || !isAuthorized ? (
+          <AuthGatePanel
+            authState={authState}
+            isDarkMode={isDarkMode}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onRefresh={() => {
+              void refreshAuthState(true);
+            }}
+          />
+        ) : activeTab === 'Dashboard' ? (
+          <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} pageType="dashboard" />
         ) : activeTab === 'Statistics' ? (
           <StatisticsPage isDarkMode={isDarkMode} />
         ) : activeTab === 'Habits' ? (
-          <MainContent isDarkMode={isDarkMode} pageType="habits" />
+          <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} pageType="habits" />
         ) : activeTab === 'Categories' ? (
-          <MainContent isDarkMode={isDarkMode} pageType="categories" />
+          <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} pageType="categories" />
         ) : activeTab === 'Streak' ? (
-          <MainContent isDarkMode={isDarkMode} pageType="streak" />
+          <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} pageType="streak" />
         ) : (
-          <MainContent isDarkMode={isDarkMode} pageType="dashboard" />
+          <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} pageType="dashboard" />
         )}
       </div>
       <SettingsModal
@@ -876,6 +906,13 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
+        isAuthenticated={isAuthenticated}
+        onAuthAction={handleAuthAction}
+      />
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={handleCloseAuthModal}
+        isDarkMode={isDarkMode}
       />
     </ShaderBackground>
   );
