@@ -1,0 +1,31 @@
+title = "PureHabit gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Allow deterministic TOTP test secrets in unit tests"
+condition = "AND"
+regexTarget = "match"
+regexes = [
+  '''JBSWY3DPEHPK3PXP''',
+  '''GEZDGNBVGY3TQOJQ''',
+]
+paths = [
+  '''^functions/tests/handlers/test_api\.js$''',
+  '''^functions/tests/core/test_auth\.js$''',
+]
+
+[[allowlists]]
+description = "Allow explicit placeholder values in non-production config samples"
+condition = "AND"
+regexTarget = "match"
+regexes = [
+  '''MY_GEMINI_API_KEY''',
+  '''YOUR_FIREBASE_API_KEY''',
+  '''missing-api-key''',
+]
+paths = [
+  '''^\.env\.example$''',
+  '''^src/config/firebase\.ts$''',
+]

@@ -1,0 +1,41 @@
+rules_version='2'
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      // Client can read only its own profile. Profile mutations are server-only.
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
+    match /habits/{habitId} {
+      // Habit documents are private per user and writable only via backend.
+      allow read: if isSignedIn() && resource.data.userId is string && isOwner(resource.data.userId);
+      allow write: if false;
+    }
+
+    match /habit_logs/{logId} {
+      // Habit log documents are private per user and writable only via backend.
+      allow read: if isSignedIn() && resource.data.userId is string && isOwner(resource.data.userId);
+      allow write: if false;
+    }
+
+    match /streak_status/{habitId} {
+      // Streak cache is private per user and writable only via backend.
+      allow read: if isSignedIn() && resource.data.userId is string && isOwner(resource.data.userId);
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

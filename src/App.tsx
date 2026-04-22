@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { format, addDays, startOfWeek, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subWeeks, addWeeks } from 'date-fns';
 import confetti from 'canvas-confetti';
@@ -34,6 +34,12 @@ const ICON_MAP = {
 };
 
 const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onSettingsClick }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onSettingsClick: () => void }) => (
+import { AuthModal } from './components/AuthModal';
+import { useAuth } from './hooks/useAuth';
+import type { AuthState } from './types/auth';
+import { AUTH_COPY, VERIFICATION_STEP_COPY } from './constants/authCopy';
+
+const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAuthModal, isAuthenticated }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onOpenAuthModal: () => void, isAuthenticated: boolean }) => (
   <aside className={`w-64 h-screen flex flex-col px-6 py-8 backdrop-blur-sm border-r transition-colors duration-500 ${isDarkMode ? 'bg-black/20 border-[#4A2C24]/30' : 'bg-white/10 border-[#EADCCF]/20'}`}>
     <div className={`flex items-center gap-2 mb-12 px-2 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
       <Sparkles className="w-6 h-6" />
@@ -48,7 +54,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onSetting
       <NavItem icon={<Flame />} label="Streak" active={activeTab === 'Streak'} onClick={() => setActiveTab('Streak')} isDarkMode={isDarkMode} />
     </nav>
 
-    <div className="mt-auto space-y-8 px-2">
+    <div className="mt-auto px-2">
       <div className="flex items-center">
         <ThemeToggle isDark={isDarkMode} setIsDark={setIsDarkMode} />
       </div>
@@ -82,10 +88,10 @@ const NavItem = ({ icon, label, active = false, onClick, isDarkMode }: { icon: R
   </a>
 );
 
-const Header = ({ range, setRange, currentDate, isDarkMode }: { range: string, setRange: (r: string) => void, currentDate: Date, isDarkMode: boolean }) => (
+const Header = ({ range, setRange, currentDate, isDarkMode, userDisplayName }: { range: string, setRange: (r: string) => void, currentDate: Date, isDarkMode: boolean, userDisplayName: string }) => (
   <div className="flex justify-between items-end">
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className={`font-serif text-4xl font-medium mb-1 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Good Morning, Alex</h1>
+      <h1 className={`font-serif text-4xl font-medium mb-1 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Good Morning, {userDisplayName}</h1>
       <p className={`text-sm transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#2A2421]'}`}>{format(currentDate, 'EEEE, MMMM d, yyyy')}</p>
     </motion.div>
     <div className={`flex backdrop-blur-md rounded-full p-1 soft-shadow relative transition-colors duration-500 ${isDarkMode ? 'bg-[#2A2421]/60' : 'bg-[#FAF5F0]/60'}`}>
@@ -114,7 +120,7 @@ const ProgressSection = ({ progress, isDarkMode }: { progress: number, isDarkMod
     <span className={`text-sm font-medium whitespace-nowrap transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Today's Progress</span>
     <div className={`flex-1 h-5 backdrop-blur-sm rounded-full overflow-hidden inner-shadow relative transition-colors duration-500 ${isDarkMode ? 'bg-black/30' : 'bg-white/50'}`}>
       <motion.div 
-        className="absolute top-0 left-0 h-full bg-[#D0705B] rounded-full flex items-center justify-center min-w-[2.5rem]"
+        className="absolute top-0 left-0 h-full bg-[#D0705B] rounded-full flex items-center justify-center min-w-10"
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
         transition={{ duration: 0.8, ease: "easeOut" }}
@@ -610,7 +616,12 @@ const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boole
   return (
     <main className="flex-1 p-8 overflow-y-auto z-10">
       <div className="max-w-5xl mx-auto">
-        <Header range={range} setRange={handleSetRange} currentDate={selectedDate} isDarkMode={isDarkMode} />
+        {showProfileLoading && (
+          <div className={`mb-5 rounded-2xl px-4 py-3 text-sm font-medium transition-colors duration-500 ${isDarkMode ? 'bg-[#D0705B]/20 text-[#FDF8F3]' : 'bg-[#D0705B]/15 text-[#2A2421]'}`}>
+            {AUTH_COPY.shellProfileLoading}
+          </div>
+        )}
+        <Header range={range} setRange={handleSetRange} currentDate={selectedDate} isDarkMode={isDarkMode} userDisplayName={userDisplayName} />
         
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -637,10 +648,210 @@ const MainContent = ({ isDarkMode, pageType = 'dashboard' }: { isDarkMode: boole
   );
 };
 
+const AuthGatePanel = ({
+  authState,
+  isDarkMode,
+  onOpenAuth,
+  onRefresh,
+}: {
+  authState: AuthState;
+  isDarkMode: boolean;
+  onOpenAuth: () => void;
+  onRefresh: () => void;
+}) => {
+  const isPending = authState.status === 'authenticated_pending';
+  const missingSteps = isPending ? authState.security.missingSteps : [];
+
+  return (
+    <main className="flex-1 p-8 overflow-y-auto z-10">
+      <div className="max-w-3xl mx-auto">
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-3xl p-8 soft-shadow backdrop-blur-md transition-colors duration-500 ${
+            isDarkMode ? 'bg-[#2A2421]/75' : 'bg-[#FAF5F0]/80'
+          }`}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <ShieldAlert className={`w-6 h-6 ${isDarkMode ? 'text-[#D0705B]' : 'text-[#B85F4C]'}`} />
+            <h2 className={`font-serif text-3xl transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+              {isPending ? AUTH_COPY.gateTitlePending : AUTH_COPY.gateTitleSignIn}
+            </h2>
+          </div>
+
+          <p className={`text-sm leading-relaxed transition-colors duration-500 ${isDarkMode ? 'text-[#EADCCF]' : 'text-[#4A3E37]'}`}>
+            {isPending
+              ? AUTH_COPY.gateBodyPending
+              : AUTH_COPY.gateBodySignIn}
+          </p>
+
+          {isPending && (
+            <div className="mt-6 space-y-3">
+              {missingSteps.map((step) => (
+                <div
+                  key={step}
+                  className={`rounded-2xl border px-4 py-3 ${
+                    isDarkMode
+                      ? 'border-[#D0705B]/30 bg-[#D0705B]/10'
+                      : 'border-[#D0705B]/25 bg-[#D0705B]/10'
+                  }`}
+                >
+                  <p className={`text-sm font-semibold ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                    {VERIFICATION_STEP_COPY[step].title}
+                  </p>
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-[#EADCCF]' : 'text-[#4A3E37]'}`}>
+                    {VERIFICATION_STEP_COPY[step].body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {authState.message && (
+            <p className={`mt-5 text-sm ${isDarkMode ? 'text-[#F5C5BA]' : 'text-[#8C3B2B]'}`}>
+              {authState.message}
+            </p>
+          )}
+
+          <div className="mt-7 flex flex-wrap gap-3">
+            <button
+              onClick={onOpenAuth}
+              className="rounded-xl bg-[#D0705B] px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              {isPending ? AUTH_COPY.gateOpenAuthPending : AUTH_COPY.gateOpenAuthSignIn}
+            </button>
+            {isPending && (
+              <button
+                onClick={onRefresh}
+                className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${
+                  isDarkMode
+                    ? 'border border-[#A58876]/40 text-[#FDF8F3] hover:bg-[#4A2C24]/40'
+                    : 'border border-[#C9B7AA] text-[#2A2421] hover:bg-[#E8DCD1]/60'
+                }`}
+              >
+                {AUTH_COPY.gateRefreshStatus}
+              </button>
+            )}
+          </div>
+        </motion.section>
+      </div>
+    </main>
+  );
+};
+
+const SettingsPanel = ({
+  isDarkMode,
+  isAuthenticated,
+  onAuthAction,
+}: {
+  isDarkMode: boolean;
+  isAuthenticated: boolean;
+  onAuthAction: () => void;
+}) => {
+  return (
+    <main className="flex-1 p-8 overflow-y-auto z-10">
+      <div className="max-w-3xl mx-auto">
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-3xl p-8 soft-shadow backdrop-blur-md transition-colors duration-500 ${
+            isDarkMode ? 'bg-[#2A2421]/75' : 'bg-[#FAF5F0]/80'
+          }`}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <Settings className={`w-6 h-6 ${isDarkMode ? 'text-[#D0705B]' : 'text-[#B85F4C]'}`} />
+            <h2 className={`font-serif text-3xl transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+              Settings
+            </h2>
+          </div>
+
+          <p className={`text-sm leading-relaxed mb-8 transition-colors duration-500 ${isDarkMode ? 'text-[#EADCCF]' : 'text-[#4A3E37]'}`}>
+            Manage account access and your session from this panel.
+          </p>
+
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onAuthAction}
+            className={`flex items-center gap-3 w-full max-w-sm p-4 rounded-2xl transition-all duration-500 cursor-pointer group ${
+              isDarkMode
+                ? 'bg-[#D0705B]/15 border border-[#D0705B]/30 hover:bg-[#D0705B]/25 shadow-lg'
+                : 'bg-[#D0705B]/10 border border-[#D0705B]/20 hover:bg-[#D0705B]/20'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+              isDarkMode ? 'bg-[#D0705B]/20' : 'bg-[#D0705B]/15'
+            }`}>
+              {isAuthenticated ? (
+                <LogOut className="w-5 h-5 text-[#D0705B]" />
+              ) : (
+                <LogIn className="w-5 h-5 text-[#D0705B]" />
+              )}
+            </div>
+            <div className="flex-1 text-left">
+              <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                {isAuthenticated ? 'Sign Out' : 'Sign In'}
+              </p>
+              <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+                {isAuthenticated ? 'End current session' : 'Login or Register'}
+              </p>
+            </div>
+            <ChevronRight className={`w-4 h-4 transition-all duration-300 group-hover:translate-x-0.5 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`} />
+          </motion.button>
+        </motion.section>
+      </div>
+    </main>
+  );
+};
+
 export default function App() {
+  const { authState, refreshAuthState, signOut } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('Dashboard');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  const isAuthenticated =
+    authState.status === 'authenticated_ready' ||
+    authState.status === 'authenticated_pending';
+  // TODO(auth-verification-coming-soon): Restore strict authorization gate when email + TOTP verification is enabled.
+  // const isAuthorized = authState.status === 'authenticated_ready';
+  const isAuthorized = isAuthenticated;
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsAuthOpen(true);
+      setActiveTab('Dashboard');
+    }
+  }, [isAuthenticated]);
+
+  const handleAuthAction = () => {
+    if (isAuthenticated) {
+      void signOut();
+      return;
+    }
+
+    setIsAuthOpen(true);
+  };
+
+  const showProfileLoading =
+    authState.status === 'authenticated_ready' &&
+    authState.profileStatus === 'loading';
+
+  const userDisplayName = (() => {
+    if (
+      authState.status !== 'authenticated_ready' &&
+      authState.status !== 'authenticated_pending'
+    ) {
+      return 'Alex';
+    }
+
+    const displayName = authState.user.displayName?.trim();
+    if (displayName) {
+      return displayName;
+    }
+
+    return 'Alex';
+  })();
 
   return (
     <ShaderBackground isDarkMode={isDarkMode}>
