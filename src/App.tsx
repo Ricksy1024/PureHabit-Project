@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { format, addDays, startOfWeek, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subWeeks, addWeeks } from 'date-fns';
 import confetti from 'canvas-confetti';
 import { 
-  Sparkles, LayoutDashboard, BarChart2, CheckSquare, Folder, Flame, 
-  Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical, LogIn, LogOut, ShieldAlert
+  Sparkles, LayoutDashboard, BarChart2, CheckSquare, Folder, Flame,
+  Check, Wind, Droplet, BookOpen, ChevronLeft, ChevronRight, GripVertical, LogIn, LogOut, ShieldAlert, Settings
 } from 'lucide-react';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ShaderBackground } from './components/ShaderBackground';
@@ -14,7 +14,7 @@ import { useAuth } from './hooks/useAuth';
 import type { AuthState } from './types/auth';
 import { AUTH_COPY, VERIFICATION_STEP_COPY } from './constants/authCopy';
 
-const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAuthModal, onAuthAction, isAuthenticated }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onOpenAuthModal: () => void, onAuthAction: () => void, isAuthenticated: boolean }) => (
+const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAuthModal, isAuthenticated }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onOpenAuthModal: () => void, isAuthenticated: boolean }) => (
   <aside className={`w-64 h-screen flex flex-col px-6 py-8 backdrop-blur-sm border-r transition-colors duration-500 ${isDarkMode ? 'bg-black/20 border-[#4A2C24]/30' : 'bg-white/10 border-[#EADCCF]/20'}`}>
     <div className={`flex items-center gap-2 mb-12 px-2 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
       <Sparkles className="w-6 h-6" />
@@ -27,38 +27,13 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onOpenAut
       <NavItem icon={<CheckSquare />} label="Habits" isDarkMode={isDarkMode} />
       <NavItem icon={<Folder />} label="Categories" isDarkMode={isDarkMode} />
       <NavItem icon={<Flame />} label="Streak" isDarkMode={isDarkMode} />
+      <NavItem icon={<Settings />} label="Settings" active={activeTab === 'Settings'} onClick={isAuthenticated ? () => setActiveTab('Settings') : onOpenAuthModal} isDarkMode={isDarkMode} />
     </nav>
 
-    <div className="mt-auto space-y-8 px-2">
+    <div className="mt-auto px-2">
       <div className="flex items-center">
         <ThemeToggle isDark={isDarkMode} setIsDark={setIsDarkMode} />
       </div>
-
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={onAuthAction}
-        className={`flex items-center gap-3 w-full p-3 -mx-2 rounded-2xl transition-all duration-500 cursor-pointer group ${
-          isDarkMode
-            ? 'bg-[#D0705B]/15 border border-[#D0705B]/30 hover:bg-[#D0705B]/25 shadow-lg'
-            : 'bg-[#D0705B]/10 border border-[#D0705B]/20 hover:bg-[#D0705B]/20'
-        }`}
-      >
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-          isDarkMode ? 'bg-[#D0705B]/20' : 'bg-[#D0705B]/15'
-        }`}>
-          {isAuthenticated ? (
-            <LogOut className="w-5 h-5 text-[#D0705B]" />
-          ) : (
-            <LogIn className="w-5 h-5 text-[#D0705B]" />
-          )}
-        </div>
-        <div className="flex-1 text-left">
-          <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>{isAuthenticated ? 'Sign Out' : 'Sign In'}</p>
-          <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>{isAuthenticated ? 'End current session' : 'Login or Register'}</p>
-        </div>
-        <ChevronRight className={`w-4 h-4 transition-all duration-300 group-hover:translate-x-0.5 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`} />
-      </motion.button>
     </div>
   </aside>
 );
@@ -540,6 +515,71 @@ const AuthGatePanel = ({
   );
 };
 
+const SettingsPanel = ({
+  isDarkMode,
+  isAuthenticated,
+  onAuthAction,
+}: {
+  isDarkMode: boolean;
+  isAuthenticated: boolean;
+  onAuthAction: () => void;
+}) => {
+  return (
+    <main className="flex-1 p-8 overflow-y-auto z-10">
+      <div className="max-w-3xl mx-auto">
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-3xl p-8 soft-shadow backdrop-blur-md transition-colors duration-500 ${
+            isDarkMode ? 'bg-[#2A2421]/75' : 'bg-[#FAF5F0]/80'
+          }`}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <Settings className={`w-6 h-6 ${isDarkMode ? 'text-[#D0705B]' : 'text-[#B85F4C]'}`} />
+            <h2 className={`font-serif text-3xl transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+              Settings
+            </h2>
+          </div>
+
+          <p className={`text-sm leading-relaxed mb-8 transition-colors duration-500 ${isDarkMode ? 'text-[#EADCCF]' : 'text-[#4A3E37]'}`}>
+            Manage account access and your session from this panel.
+          </p>
+
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onAuthAction}
+            className={`flex items-center gap-3 w-full max-w-sm p-4 rounded-2xl transition-all duration-500 cursor-pointer group ${
+              isDarkMode
+                ? 'bg-[#D0705B]/15 border border-[#D0705B]/30 hover:bg-[#D0705B]/25 shadow-lg'
+                : 'bg-[#D0705B]/10 border border-[#D0705B]/20 hover:bg-[#D0705B]/20'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+              isDarkMode ? 'bg-[#D0705B]/20' : 'bg-[#D0705B]/15'
+            }`}>
+              {isAuthenticated ? (
+                <LogOut className="w-5 h-5 text-[#D0705B]" />
+              ) : (
+                <LogIn className="w-5 h-5 text-[#D0705B]" />
+              )}
+            </div>
+            <div className="flex-1 text-left">
+              <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                {isAuthenticated ? 'Sign Out' : 'Sign In'}
+              </p>
+              <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+                {isAuthenticated ? 'End current session' : 'Login or Register'}
+              </p>
+            </div>
+            <ChevronRight className={`w-4 h-4 transition-all duration-300 group-hover:translate-x-0.5 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`} />
+          </motion.button>
+        </motion.section>
+      </div>
+    </main>
+  );
+};
+
 export default function App() {
   const { authState, refreshAuthState, signOut } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -552,6 +592,13 @@ export default function App() {
   // TODO(auth-verification-coming-soon): Restore strict authorization gate when email + TOTP verification is enabled.
   // const isAuthorized = authState.status === 'authenticated_ready';
   const isAuthorized = isAuthenticated;
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsAuthOpen(true);
+      setActiveTab('Dashboard');
+    }
+  }, [isAuthenticated]);
 
   const handleAuthAction = () => {
     if (isAuthenticated) {
@@ -591,7 +638,6 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onOpenAuthModal={() => setIsAuthOpen(true)}
-          onAuthAction={handleAuthAction}
           isAuthenticated={isAuthenticated}
         />
         {isAuthorized ? (
@@ -599,6 +645,8 @@ export default function App() {
             <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} />
           ) : activeTab === 'Statistics' ? (
             <StatisticsPage isDarkMode={isDarkMode} />
+          ) : activeTab === 'Settings' ? (
+            <SettingsPanel isDarkMode={isDarkMode} isAuthenticated={isAuthenticated} onAuthAction={handleAuthAction} />
           ) : (
             <MainContent isDarkMode={isDarkMode} showProfileLoading={showProfileLoading} userDisplayName={userDisplayName} />
           )
