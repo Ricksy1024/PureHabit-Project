@@ -12,6 +12,14 @@
 - Q: Should habit CRUD use direct Firestore SDK writes or new Cloud Function callables? → A: Direct Firestore SDK writes from the authenticated client for habit CRUD (rules already permit this for the owning user); `syncHabitLogs` callable stays for log sync to preserve Logical OR semantics.
 - Q: Should the Statistics page load logs eagerly (all at once) or lazily (on demand per range switch)? → A: Lazy / on-demand — query Firestore only when the user selects a date range, and cache the result locally for the session.
 - Q: Should push notification permission be requested immediately on first sign-in or deferred to an in-app prompt? → A: Deferred — request only after the user explicitly visits Settings, to avoid surprise browser prompts.
+- Q: Which write operations MUST work while the user is offline? → A: Completions only — habit completion toggles are queued by Firestore offline persistence (IndexedDB) and synced on reconnect; habit CRUD (create/edit/archive) requires active connectivity and MUST show a clear error if attempted offline.
+- Q: How should concurrent edits to the same habit's metadata be resolved? → A: Last write wins — whichever device saves last overwrites the other; no conflict detection, merge logic, or stale-write warnings are required for habit metadata edits.
+- Q: What should the UI display while the initial habit list is loading from Firestore? → A: Skeleton placeholders — show 3 dimmed habit-card-shaped placeholder elements to maintain layout stability and communicate that content is loading; replace with real data or an empty state once the first snapshot delivers.
+- Q: Can users unarchive (restore) a previously archived habit in this release? → A: No — archive is a one-way action for this release; restore/unarchive is explicitly out of scope. Historical logs are preserved but the habit cannot be reactivated until a dedicated restore feature is built.
+- Q: When a Firestore security rule gap blocks a required frontend write, what is the mandatory resolution path? → A: Add a minimal callable Cloud Function wrapper — keep security rules unchanged and route the blocked write through a new backend callable using the established `requireCallableAuth` pattern; document the gap and the new callable in the spec.
+- Q: What is the denominator for calculating a habit's completion rate on the Statistics page? → A: Scheduled days only — only calendar days within the selected range on which the habit was scheduled (per its `frequency.days` field) count as the denominator. Days outside the schedule are excluded from both numerator and denominator.
+- Q: Should historical completions from archived habits count in the Statistics page? → A: Yes — logs from archived habits are included in all Statistics calculations. Excluding them would cause rates to jump misleadingly when a habit is archived, producing a dishonest picture of historical performance.
+- Q: What is the maximum number of `habit_logs` documents a single Statistics query may fetch? → A: 1,000 documents maximum per query (Firestore SDK default limit). If the query would exceed this, the Statistics page displays a notice: "Showing data for your most recent habits" — no pagination UI is required.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -155,6 +163,10 @@ percentages and counts match the actual `habit_logs` records.
 3. **Given** a user with no habit logs for the selected range, **When** they
    view Statistics, **Then** completion rate shows 0% and an appropriate empty
    state is displayed — not a loading spinner or error.
+4. **Given** a user who archived a habit last month but completed it regularly
+   before archiving, **When** they view Statistics for a range covering those
+   completions, **Then** the archived habit's logs ARE included in the completion
+   rate — the rate MUST NOT change after the habit was archived.
 
 ---
 
@@ -247,10 +259,11 @@ scheduler can read and use the token.
 - What happens when a Firestore write fails during habit completion toggle?
   The optimistic UI update is reverted to the previous state and an inline error
   message is displayed. The user can retry the toggle.
-- What happens when the user creates a habit while offline?
-  Firestore's local persistence queues the write; it syncs automatically when
-  connectivity is restored. The habit appears in the UI immediately via the
-  optimistic local cache.
+- What happens when the user attempts to create, edit, or archive a habit while offline?
+  Habit CRUD requires active connectivity. If the device is offline, the system
+  MUST detect the connectivity failure, show an inline error ("No connection —
+  changes could not be saved. Please retry when online."), and NOT apply an
+  optimistic local update for CRUD operations.
 - What happens if `streak_status` has no document for a given habit?
   The UI shows "0 days" for both current and longest streak until the backend
   trigger creates the document after the first completion.
@@ -263,6 +276,22 @@ scheduler can read and use the token.
 - What happens when account deletion fails mid-cascade on the backend?
   The callable returns an error, the user is shown an actionable error message,
   and they remain signed in. No partial data loss occurs on the client.
+- What happens when two devices edit the same habit's metadata simultaneously?
+  Last write wins — Firestore's native update semantics apply. The final
+  persisted state reflects whichever save reached Firestore last. No warning
+  or conflict prompt is shown to the user.
+- What does the user see while the habit list is loading on first page visit?
+  Three dimmed skeleton habit-card placeholders are shown immediately after
+  authentication resolves. They are replaced by real cards (or the empty-state
+  message) as soon as the first `onSnapshot` delivery arrives. The skeleton
+  state MUST NOT persist longer than 10 seconds; if no data arrives by then,
+  an inline error with a retry action is shown instead.
+- What happens when a Statistics query hits the 1,000-document limit?
+  The query returns the first 1,000 matching `habit_logs` documents (ordered
+  by `dateString` descending to favour the most recent data). The Statistics
+  page displays a non-blocking notice: "Showing data for your most recent
+  habits." Completion rates are calculated on the returned subset only —
+  no second query or pagination is triggered.
 
 ## Requirements *(mandatory)*
 
@@ -273,17 +302,28 @@ scheduler can read and use the token.
   as the canonical habit identifier.
 - **FR-002**: System MUST load the authenticated user's non-archived habits from
   Firestore on every page load and reflect real-time updates via `onSnapshot`
-  subscriptions.
+  subscriptions. While awaiting the first snapshot delivery, the system MUST
+  display 3 dimmed skeleton habit-card placeholders to maintain layout stability;
+  these MUST be replaced by real habit cards (or the empty-state message) as
+  soon as the first snapshot arrives.
 - **FR-003**: System MUST persist habit edits (name, metric, frequency days,
   category) to the existing `habits` Firestore document immediately on save.
+  Concurrent edits from multiple devices are resolved by last write wins —
+  no conflict detection or merge is required for habit metadata.
 - **FR-004**: System MUST soft-delete habits by setting `archived: true` on the
   `habits` document; archived habits MUST be excluded from all active lists and
-  completion flows.
+  completion flows. Archive is a **one-way action** in this release — no
+  unarchive or restore capability is provided. The archived habit's `habit_logs`
+  and `streak_status` documents are preserved for historical integrity.
 - **FR-005**: System MUST submit habit completion toggles via the `syncHabitLogs`
   callable Cloud Function, passing the correct `habitId`, `dateString` (logical
   day in user's timezone), and `completed` boolean.
-- **FR-006**: System MUST apply an optimistic UI update on habit toggle and
-  revert if the backend call fails, displaying a user-visible inline error.
+- **FR-006**: System MUST apply an optimistic UI update on habit completion toggle
+  (the only offline-capable write operation) and revert if the backend call
+  ultimately fails on reconnect, displaying a user-visible inline error. Habit
+  CRUD operations (create/edit/archive) MUST NOT apply optimistic updates — they
+  require connectivity and MUST surface a clear offline error if attempted without
+  a network connection.
 - **FR-007**: System MUST derive the logical date for habit completion using
   the timezone stored in `users.timezone`, consistent with the backend's
   3 AM grace period rule.
@@ -292,7 +332,16 @@ scheduler can read and use the token.
   directly from those documents — no frontend streak computation is permitted.
 - **FR-009**: System MUST load Statistics data from `habit_logs` and `habits`
   Firestore documents, scoped to the authenticated user and selected date range,
-  only when the date range is selected (lazy loading).
+  only when the date range is selected (lazy loading). Completion rate MUST be
+  calculated as `completedCount / scheduledDayCount` where `scheduledDayCount`
+  is the number of days in the selected range on which the habit's
+  `frequency.days` includes that day-of-week. Days outside the habit's schedule
+  MUST NOT contribute to either the numerator or denominator. Logs from
+  **archived habits MUST be included** in Statistics calculations — archiving a
+  habit MUST NOT retroactively alter historical completion rates. Each Statistics
+  query MUST apply a hard limit of **1,000 documents**; if results are capped,
+  the Statistics page MUST display a non-blocking notice: "Showing data for your
+  most recent habits."
 - **FR-010**: System MUST display the authenticated user's real display name,
   email, and timezone in the Settings panel, sourced from the `users` Firestore
   document and Firebase Auth profile.
@@ -311,9 +360,13 @@ scheduler can read and use the token.
 - **FR-016**: System MUST request browser notification permission and store the
   FCM device token at `users.pushToken` in Firestore only when the user
   explicitly requests it from the Settings panel.
-- **FR-017**: System MUST NOT modify any Cloud Function source code or Firestore
-  security rules as part of this feature unless a missing backend capability is
-  formally documented as a gap.
+- **FR-017**: System MUST NOT modify Firestore security rules as part of this
+  feature. If a security rule gap is discovered that blocks a required frontend
+  write, the mandatory resolution path is to add a minimal callable Cloud
+  Function using the existing `requireCallableAuth` pattern, document the gap
+  in the spec, and route the write through that callable. New callables added
+  under this policy MUST be flagged with a `[SECURITY-GAP]` comment in both
+  the implementation task and the callable source.
 - **FR-018**: System MUST preserve all existing Framer Motion animations and UI
   component aesthetics; this feature adds data wiring only.
 - **FR-019**: System MUST leave all TOTP verification gate bypass TODO comments
@@ -378,9 +431,11 @@ scheduler can read and use the token.
 - **SC-003**: Streak values shown in the UI match the `streak_status` Firestore
   document values with 100% accuracy — no frontend-computed streak values appear
   anywhere in the application.
-- **SC-004**: Statistics page completion rates match the actual ratio of
-  completed to total applicable habit logs for the selected date range, with
-  zero hardcoded values remaining.
+- **SC-004**: Statistics page completion rates match the ratio of
+  `completed: true` logs to the total number of days the habit was scheduled
+  (per `frequency.days`) within the selected date range — days outside the
+  habit's schedule are excluded from both numerator and denominator. Zero
+  hardcoded values remain in the Statistics page.
 - **SC-005**: Account deletion leaves zero orphaned Firestore documents across
   `users`, `habits`, `habit_logs`, and `streak_status` collections for the
   deleted user.
@@ -396,12 +451,17 @@ scheduler can read and use the token.
 
 - The existing Firestore security rules permit authenticated users to read and
   write their own `habits`, `users`, and `habit_logs` documents directly via the
-  Firebase Web SDK. If a rule gap is discovered, it will be documented and
-  treated as a blocking issue.
+  Firebase Web SDK. If a rule gap is discovered that blocks a required write,
+  the resolution path is to add a minimal callable Cloud Function using the
+  existing `requireCallableAuth` pattern (not to modify the security rules).
+  The gap and the new callable MUST be documented in this spec before
+  implementation proceeds.
 - The `onHabitLogWrite` backend trigger fires reliably within a few seconds of a
   `habit_logs` document being written, making real-time streak updates feasible.
 - Firebase Offline Persistence (IndexedDB) is enabled for the Firestore client
-  instance, allowing optimistic habit and log writes while offline.
+  instance. Offline persistence applies **only to habit completion toggles** —
+  these are queued and synced on reconnect. Habit CRUD operations (create, edit,
+  archive) require active connectivity and are not optimistically cached offline.
 - The backend `syncHabitLogs` callable correctly enforces Logical OR merge for
   all callers — the frontend does not need to implement this logic itself.
 - The TOTP verification gate remains bypassed for this feature (all authenticated
@@ -412,3 +472,6 @@ scheduler can read and use the token.
   `habit_logs`, `streak_status`, `users`) match the actual Firestore collection
   names used in production.
 - Non-web clients (iOS, Android) are out of scope for this feature.
+- Unarchiving (restoring) a habit is out of scope for this release; the UI
+  provides no mechanism to reverse an archive action. A restore feature may be
+  introduced in a future feature branch.
