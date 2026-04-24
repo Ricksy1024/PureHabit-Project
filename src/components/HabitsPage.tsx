@@ -2,23 +2,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Apple, Dumbbell, Book, Heart, Moon, Flame, Coffee, Smile, Music, Zap, Target, Edit2, Trash2, Plus } from 'lucide-react';
 
-interface Habit {
-  id: number;
-  title: string;
-  metric: string;
-  icon: React.ReactNode;
-  applicableDays?: string[];
-  category?: string;
-  streak?: string;
-  done?: boolean;
-  bg?: string;
-}
+import type { Habit } from '../types/habit';
 
 interface HabitCardProps {
+  key?: React.Key;
   habit: Habit;
   isDarkMode: boolean;
   onEdit: (habit: Habit) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }
 
 const HabitCard = ({ habit, isDarkMode, onEdit, onDelete }: HabitCardProps) => (
@@ -34,14 +25,17 @@ const HabitCard = ({ habit, isDarkMode, onEdit, onDelete }: HabitCardProps) => (
     <div className="flex items-start justify-between gap-4">
       <div className="flex items-start gap-3 flex-1">
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-[#4A2C24]' : 'bg-[#FDECE8]'}`}>
-          {habit.icon}
+          {(() => {
+            const IconComponent = habit.uiIconName === 'Apple' ? Apple : habit.uiIconName === 'Dumbbell' ? Dumbbell : habit.uiIconName === 'Book' ? Book : habit.uiIconName === 'Heart' ? Heart : habit.uiIconName === 'Moon' ? Moon : habit.uiIconName === 'Flame' ? Flame : habit.uiIconName === 'Coffee' ? Coffee : habit.uiIconName === 'Smile' ? Smile : habit.uiIconName === 'Music' ? Music : habit.uiIconName === 'Zap' ? Zap : habit.uiIconName === 'Target' ? Target : Activity;
+            return <IconComponent className={`w-6 h-6 ${habit.uiBgColor?.includes('FDECE8') || habit.uiBgColor?.includes('blue') ? 'text-[#D0705B]' : 'text-[#A58876]'}`} />;
+          })()}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className={`font-bold text-base truncate transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-            {habit.title}
+            {habit.name}
           </h3>
           <p className={`text-xs mt-1 transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
-            {habit.metric}
+            {habit.uiMetric}
           </p>
           <div className="flex gap-2 mt-2 flex-wrap">
             {habit.category && (
@@ -51,11 +45,11 @@ const HabitCard = ({ habit, isDarkMode, onEdit, onDelete }: HabitCardProps) => (
                 {habit.category}
               </span>
             )}
-            {habit.applicableDays && habit.applicableDays.length > 0 && (
+            {habit.frequency?.days && habit.frequency.days.length > 0 && (
               <span className={`text-[10px] px-2 py-1 rounded-md transition-colors ${
                 isDarkMode ? 'bg-[#4A2C24] text-[#A58876]' : 'bg-[#E8DCD1] text-[#2A2421]'
               }`}>
-                {habit.applicableDays.join(', ')}
+                {habit.frequency.days.join(', ')}
               </span>
             )}
           </div>
@@ -92,7 +86,7 @@ interface HabitsPageProps {
   isDarkMode: boolean;
   habits: Habit[];
   onEdit: (habit: Habit) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
   onAddClick: () => void;
 }
 
@@ -100,7 +94,7 @@ export const HabitsPage = ({ isDarkMode, habits, onEdit, onDelete, onAddClick }:
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredHabits = habits.filter(habit =>
-    habit.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    habit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     habit.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 

@@ -682,3 +682,18 @@ export async function fetchUserProfileWithRetry(
     message: CONNECTIVITY_ERROR,
   };
 }
+
+export async function updateUserProfileAction(params: { displayName?: string; timezone?: string }): Promise<AuthActionResult> {
+  const configurationError = ensureFirebaseConfigured();
+  if (configurationError) {
+    return configurationError;
+  }
+
+  try {
+    const callable = httpsCallable<{ displayName?: string; timezone?: string }, { success: boolean }>(functions, 'updateUserProfileAction');
+    await callable(params);
+    return { ok: true };
+  } catch (error) {
+    return mapCallableError(error);
+  }
+}

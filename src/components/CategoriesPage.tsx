@@ -1,21 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Edit2 } from 'lucide-react';
-
-interface Habit {
-  id: number;
-  title: string;
-  metric: string;
-  icon: React.ReactNode;
-  applicableDays?: string[];
-  category?: string;
-  streak?: string;
-  done?: boolean;
-  bg?: string;
-  iconName?: string;
-}
+import { ChevronDown, Edit2, Apple, Dumbbell, Book, Heart, Moon, Flame, Coffee, Smile, Music, Zap, Target, Activity } from 'lucide-react';
+import type { Habit } from '../types/habit';
 
 interface CategoryItemProps {
+  key?: React.Key;
   category: string;
   habits: Habit[];
   isDarkMode: boolean;
@@ -86,47 +75,44 @@ const CategoryItem = ({ category, habits, isDarkMode, expanded, onToggle, onEdit
           }`}
         >
           <div className="px-6 py-4 space-y-3">
-            {habits.map((habit, idx) => (
-              <motion.div
-                key={`${habit.id}-${idx}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className={`flex items-center justify-between gap-3 p-3 rounded-lg transition-colors ${
-                  isDarkMode ? 'bg-[#4A2C24]/30 hover:bg-[#4A2C24]/50' : 'bg-[#E8DCD1]/30 hover:bg-[#E8DCD1]/50'
-                }`}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm ${
-                    isDarkMode ? 'bg-[#2A2421]' : 'bg-[#FAF5F0]'
-                  }`}>
-                    {habit.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-bold truncate transition-colors ${
-                      isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'
-                    }`}>
-                      {habit.title}
-                    </p>
-                    <p className={`text-xs transition-colors ${
-                      isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
-                    }`}>
-                      {habit.metric}
-                    </p>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onEdit(habit)}
-                  className={`p-2 rounded-lg transition-colors shrink-0 ${
-                    isDarkMode ? 'bg-[#D0705B]/20 text-[#D0705B] hover:bg-[#D0705B]/30' : 'bg-[#D0705B]/10 text-[#D0705B] hover:bg-[#D0705B]/20'
+            {habits.map((habit, idx) => {
+              const IconComponent = habit.uiIconName === 'Apple' ? Apple : habit.uiIconName === 'Dumbbell' ? Dumbbell : habit.uiIconName === 'Book' ? Book : habit.uiIconName === 'Heart' ? Heart : habit.uiIconName === 'Moon' ? Moon : habit.uiIconName === 'Flame' ? Flame : habit.uiIconName === 'Coffee' ? Coffee : habit.uiIconName === 'Smile' ? Smile : habit.uiIconName === 'Music' ? Music : habit.uiIconName === 'Zap' ? Zap : habit.uiIconName === 'Target' ? Target : Activity;
+              return (
+                <motion.div
+                  key={habit.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={`flex items-center justify-between gap-3 p-3 rounded-lg transition-colors ${
+                    isDarkMode ? 'bg-[#4A2C24]/30 hover:bg-[#4A2C24]/50' : 'bg-[#E8DCD1]/30 hover:bg-[#E8DCD1]/50'
                   }`}
                 >
-                  <Edit2 className="w-4 h-4" />
-                </motion.button>
-              </motion.div>
-            ))}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isDarkMode ? habit.uiBgColor.replace('bg-[#FDECE8]', 'bg-[#4A2C24]').replace('bg-[#F2E8E3]', 'bg-[#3A2A24]') : habit.uiBgColor}`}>
+                      <IconComponent className={`w-5 h-5 ${habit.uiBgColor?.includes('FDECE8') || habit.uiBgColor?.includes('blue') ? 'text-[#D0705B]' : 'text-[#A58876]'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-bold truncate transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                        {habit.name}
+                      </p>
+                      <p className={`text-[10px] transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+                        {habit.uiMetric}
+                      </p>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => onEdit(habit)}
+                    className={`p-2 rounded-lg transition-colors shrink-0 ${
+                      isDarkMode ? 'bg-[#D0705B]/20 text-[#D0705B] hover:bg-[#D0705B]/30' : 'bg-[#D0705B]/10 text-[#D0705B] hover:bg-[#D0705B]/20'
+                    }`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </motion.button>
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
       )}

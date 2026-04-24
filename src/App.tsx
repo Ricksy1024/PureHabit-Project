@@ -19,7 +19,11 @@ import { StreakPage } from './components/StreakPage';
 import { SettingsModal } from './components/SettingsModal';
 import { AuthModal } from './components/AuthModal';
 import { useAuth } from './hooks/useAuth';
+import { useHabits } from './hooks/useHabits';
 import type { AuthState } from './types/auth';
+import type { Habit } from './types/habit';
+import { createHabit, updateHabit, archiveHabit, batchRenameCategory } from './services/habitService';
+import { useHabitLogs } from './hooks/useHabitLogs';
 import { AUTH_COPY, VERIFICATION_STEP_COPY } from './constants/authCopy';
 
 const ICON_MAP = {
@@ -201,23 +205,10 @@ const CalendarStrip = ({ selectedDate, setSelectedDate, range, getDayProgress, v
   );
 };
 
-interface Habit {
-  id: number;
-  title: string;
-  streak: string;
-  metric: string;
-  icon: React.ReactNode;
-  done: boolean;
-  bg: string;
-  applicableDays?: string[];
-  category?: string;
-  iconName?: string;
-}
 
-const HabitsList = ({ habits, toggleHabit, onReorder, isDarkMode, onAddClick }: { habits: Habit[], toggleHabit: (id: number) => void, onReorder: (newOrder: Habit[]) => void, isDarkMode: boolean, onAddClick: () => void }) => {
-  const handleToggle = (id: number, e: React.MouseEvent) => {
-    const habit = habits.find(h => h.id === id);
-    if (!habit?.done) {
+const HabitsList = ({ habits, toggleHabit, onReorder, isDarkMode, onAddClick, loading, error, completionMap }: { habits: Habit[], toggleHabit: (id: string, isDone: boolean) => void, onReorder: (newOrder: Habit[]) => void, isDarkMode: boolean, onAddClick: () => void, loading?: boolean, error?: string | null, completionMap?: Record<string, boolean> }) => {
+  const handleToggle = (id: string, e: React.MouseEvent, isDone: boolean) => {
+    if (!isDone) {
       const rect = (e.target as HTMLElement).getBoundingClientRect();
       const x = (rect.left + rect.width / 2) / window.innerWidth;
       const y = (rect.top + rect.height / 2) / window.innerHeight;
@@ -230,7 +221,7 @@ const HabitsList = ({ habits, toggleHabit, onReorder, isDarkMode, onAddClick }: 
         disableForReducedMotion: true
       });
     }
-    toggleHabit(id);
+    toggleHabit(id, isDone);
   };
 
   return (
@@ -239,49 +230,80 @@ const HabitsList = ({ habits, toggleHabit, onReorder, isDarkMode, onAddClick }: 
         <h2 className={`font-serif text-2xl transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Daily Habits</h2>
         <motion.button onClick={onAddClick} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${isDarkMode ? 'bg-[#D0705B]/20 text-[#D0705B] hover:bg-[#D0705B]/30' : 'bg-[#D0705B]/10 text-[#D0705B] hover:bg-[#D0705B]/20'}`}>Add New</motion.button>
       </div>
-      <Reorder.Group axis="y" values={habits} onReorder={onReorder} className="space-y-4">
-        <AnimatePresence>
-          {habits.map(habit => (
-            <Reorder.Item
-              key={habit.id}
-              value={habit}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className={`backdrop-blur-md rounded-3xl p-4 flex items-center gap-4 soft-shadow cursor-default transition-colors duration-500 ${isDarkMode ? 'bg-[#2A2421]/70' : 'bg-[#FAF5F0]/70'}`}
-            >
-              <div className={`cursor-grab active:cursor-grabbing p-1 transition-colors ${isDarkMode ? 'text-[#A58876]/40 hover:text-[#FDF8F3]' : 'text-[#8A7E7A]/40 hover:text-[#2A2421]'}`}>
-                <GripVertical className="w-5 h-5" />
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className={`backdrop-blur-md rounded-3xl p-4 flex items-center gap-4 soft-shadow h-[88px] animate-pulse transition-colors duration-500 ${isDarkMode ? 'bg-[#2A2421]/30' : 'bg-[#FAF5F0]/30'}`}>
+              <div className={`w-14 h-14 rounded-2xl shrink-0 ${isDarkMode ? 'bg-[#4A2C24]/30' : 'bg-[#EADCCF]/30'}`} />
+              <div className="flex-1 space-y-2">
+                <div className={`h-4 rounded-full w-1/3 ${isDarkMode ? 'bg-[#4A2C24]/50' : 'bg-[#EADCCF]/50'}`} />
+                <div className={`h-3 rounded-full w-1/4 ${isDarkMode ? 'bg-[#4A2C24]/30' : 'bg-[#EADCCF]/30'}`} />
               </div>
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${isDarkMode ? habit.bg.replace('bg-[#FDECE8]', 'bg-[#4A2C24]').replace('bg-[#F2E8E3]', 'bg-[#3A2A24]') : habit.bg}`}>
-                {habit.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className={`font-bold text-base truncate transition-colors ${habit.done ? 'text-[#8A7E7A] line-through' : (isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]')}`}>{habit.title}</h3>
-                <div className="flex items-center gap-2 text-xs text-[#8A7E7A] mt-1 font-medium">
-                  <Flame className={`w-3.5 h-3.5 shrink-0 ${habit.done ? 'text-[#8A7E7A]' : 'text-[#D0705B]'}`} />
-                  <span>{habit.streak}</span>
-                  <span className="w-1 h-1 rounded-full bg-[#8A7E7A]/50 mx-1 shrink-0"></span>
-                  <span className="truncate">{habit.metric}</span>
-                </div>
-              </div>
-              <motion.button
-                whileTap={{ scale: 0.8 }}
-                onClick={(e) => handleToggle(habit.id, e)}
-                className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center border-2 transition-colors mr-2 ${habit.done ? 'bg-[#D0705B] border-[#D0705B] text-white shadow-[0_2px_8px_rgba(208,112,91,0.4)]' : (isDarkMode ? 'border-[#A58876]/30 text-transparent hover:border-[#D0705B]/50' : 'border-[#8A7E7A]/30 text-transparent hover:border-[#D0705B]/50')}`}
-              >
-                <motion.div
-                  initial={false}
-                  animate={{ scale: habit.done ? 1 : 0, opacity: habit.done ? 1 : 0 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <Check className="w-5 h-5" strokeWidth={3} />
-                </motion.div>
-              </motion.button>
-            </Reorder.Item>
+              <div className={`w-8 h-8 rounded-full border-2 mr-2 ${isDarkMode ? 'border-[#4A2C24]/30' : 'border-[#EADCCF]/30'}`} />
+            </div>
           ))}
-        </AnimatePresence>
-      </Reorder.Group>
+        </div>
+      ) : error ? (
+        <div className="text-center py-8">
+          <p className="text-red-500 text-sm font-medium">{error}</p>
+        </div>
+      ) : habits.length === 0 ? (
+        <div className="text-center py-12">
+          <p className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>No habits yet</p>
+          <p className={`text-sm mb-6 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>Start your journey by adding a new daily habit.</p>
+          <button onClick={onAddClick} className="px-6 py-2.5 rounded-xl bg-[#D0705B] text-white text-sm font-semibold hover:bg-[#B85F4C] transition-colors">
+            Add First Habit
+          </button>
+        </div>
+      ) : (
+        <Reorder.Group axis="y" values={habits} onReorder={onReorder} className="space-y-4">
+          <AnimatePresence>
+            {habits.map(habit => {
+              const IconComponent = ICON_MAP[habit.uiIconName as keyof typeof ICON_MAP] || Activity;
+              const isDone = completionMap?.[habit.id] ?? false;
+              const currentStreak = '0 days'; // Mock for now until US4
+              return (
+              <Reorder.Item
+                key={habit.id}
+                value={habit}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className={`backdrop-blur-md rounded-3xl p-4 flex items-center gap-4 soft-shadow cursor-default transition-colors duration-500 ${isDarkMode ? 'bg-[#2A2421]/70' : 'bg-[#FAF5F0]/70'}`}
+              >
+                <div className={`cursor-grab active:cursor-grabbing p-1 transition-colors ${isDarkMode ? 'text-[#A58876]/40 hover:text-[#FDF8F3]' : 'text-[#8A7E7A]/40 hover:text-[#2A2421]'}`}>
+                  <GripVertical className="w-5 h-5" />
+                </div>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${isDarkMode ? habit.uiBgColor.replace('bg-[#FDECE8]', 'bg-[#4A2C24]').replace('bg-[#F2E8E3]', 'bg-[#3A2A24]') : habit.uiBgColor}`}>
+                  <IconComponent className={`w-6 h-6 ${habit.uiBgColor.includes('FDECE8') || habit.uiBgColor.includes('blue') ? 'text-[#D0705B]' : 'text-[#A58876]'}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-bold text-base truncate transition-colors ${isDone ? 'text-[#8A7E7A] line-through' : (isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]')}`}>{habit.name}</h3>
+                  <div className="flex items-center gap-2 text-xs text-[#8A7E7A] mt-1 font-medium">
+                    <Flame className={`w-3.5 h-3.5 shrink-0 ${isDone ? 'text-[#8A7E7A]' : 'text-[#D0705B]'}`} />
+                    <span>{currentStreak}</span>
+                    <span className="w-1 h-1 rounded-full bg-[#8A7E7A]/50 mx-1 shrink-0"></span>
+                    <span className="truncate">{habit.uiMetric}</span>
+                  </div>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.8 }}
+                  onClick={(e) => handleToggle(habit.id, e, isDone)}
+                  className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center border-2 transition-colors mr-2 ${isDone ? 'bg-[#D0705B] border-[#D0705B] text-white shadow-[0_2px_8px_rgba(208,112,91,0.4)]' : (isDarkMode ? 'border-[#A58876]/30 text-transparent hover:border-[#D0705B]/50' : 'border-[#8A7E7A]/30 text-transparent hover:border-[#D0705B]/50')}`}
+                >
+                  <motion.div
+                    initial={false}
+                    animate={{ scale: isDone ? 1 : 0, opacity: isDone ? 1 : 0 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  >
+                    <Check className="w-5 h-5" strokeWidth={3} />
+                  </motion.div>
+                </motion.button>
+              </Reorder.Item>
+            )})}
+          </AnimatePresence>
+        </Reorder.Group>
+      )}
     </div>
   );
 };
@@ -295,12 +317,13 @@ const ActivityChart = ({ isDarkMode, allHabits, selectedDate }: { isDarkMode: bo
     const dayName = format(date, 'EEEE');
     
     const habitsForDay = allHabits.filter(h => {
-      if (!h.applicableDays || h.applicableDays.length === 0) return true;
-      return h.applicableDays.includes(dayName);
+      if (!h.frequency?.days || h.frequency.days.length === 0) return true;
+      const dayMapping: Record<string, string> = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT', 'Sunday': 'SUN' };
+      return h.frequency.days.includes(dayMapping[dayName] as any);
     });
     
     if (habitsForDay.length === 0) return 0;
-    const completed = habitsForDay.filter(h => h.done).length;
+    const completed = habitsForDay.filter(h => completionMap?.[h.id]).length;
     return Math.round((completed / habitsForDay.length) * 100);
   };
   
@@ -385,8 +408,13 @@ const MainContent = ({
   userDisplayName: string;
   pageType?: 'dashboard' | 'habits' | 'categories' | 'streak';
 }) => {
+  const { user } = useAuth();
+  const { habits: weeklyHabits, loading, error } = useHabits(user?.uid);
+  
   const [range, setRange] = useState('Today');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  const { completionMap, toggleCompletion, error: logsError } = useHabitLogs(user?.uid, selectedDate);
   const [viewDate, setViewDate] = useState(new Date());
   const [habitData, setHabitData] = useState<Record<string, Habit[]>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -405,62 +433,46 @@ const MainContent = ({
   };
 
   const getHabitsForDate = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    if (habitData[dateStr]) return habitData[dateStr];
-    
-    const isPast = date < new Date() && !isSameDay(date, new Date());
-    const seed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
-
-    return [
-      { id: 1, title: 'Morning Meditation', streak: '12 days', metric: '15 min', icon: <Wind className="text-[#D0705B] w-6 h-6" />, done: isPast ? (seed % 2 === 0) : false, bg: 'bg-[#FDECE8]', iconName: 'Activity' },
-      { id: 2, title: 'Hydrate Regularly', streak: '4 days', metric: '2.5 Liters', icon: <Droplet className="text-[#A58876] w-6 h-6" />, done: isPast ? (seed % 3 !== 0) : false, bg: 'bg-[#F2E8E3]', iconName: 'Droplet' },
-      { id: 3, title: 'Daily Reading', streak: '28 days', metric: '20 pages', icon: <BookOpen className="text-[#A58876] w-6 h-6" />, done: isPast ? (seed % 5 !== 0) : false, bg: 'bg-[#F2E8E3]', iconName: 'Book' },
-    ];
+    const dayMapping: Record<string, string> = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT', 'Sunday': 'SUN' };
+    const dayName = format(date, 'EEEE');
+    const dayCode = dayMapping[dayName];
+    return weeklyHabits.filter(h => !h.frequency?.days || h.frequency.days.includes(dayCode as any));
   };
-
-  const [weeklyHabits, setWeeklyHabits] = useState<Habit[]>([
-    { id: 4, title: 'Workout 3x', streak: '2 weeks', metric: '1/3 done', icon: <Flame className="text-[#D0705B] w-6 h-6" />, done: false, bg: 'bg-[#FDECE8]', category: 'Fitness', applicableDays: ['Monday', 'Wednesday', 'Friday'], iconName: 'Flame' },
-    { id: 5, title: 'Read a book', streak: '1 month', metric: '100 pages', icon: <BookOpen className="text-[#A58876] w-6 h-6" />, done: true, bg: 'bg-[#F2E8E3]', category: 'Learning', applicableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], iconName: 'Book' },
-    { id: 6, title: 'Meal Prep', streak: '3 weeks', metric: '5 meals', icon: <Droplet className="text-[#A58876] w-6 h-6" />, done: false, bg: 'bg-[#F2E8E3]', category: 'Health', applicableDays: ['Sunday'], iconName: 'Droplet' },
-  ]);
 
   const currentHabits = range === 'Weekly' ? weeklyHabits : getHabitsForDate(selectedDate);
 
-  const toggleHabit = (id: number) => {
-    if (range === 'Weekly') {
-      setWeeklyHabits(weeklyHabits.map(h => h.id === id ? { ...h, done: !h.done } : h));
-    } else {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const updatedHabits = currentHabits.map(h => h.id === id ? { ...h, done: !h.done } : h);
-      setHabitData({ ...habitData, [dateStr]: updatedHabits });
-    }
+  const toggleHabit = (id: string, isDone: boolean) => {
+    toggleCompletion(id, isDone);
   };
 
   const handleReorder = (newOrder: Habit[]) => {
-    if (range === 'Weekly') {
-      setWeeklyHabits(newOrder);
-    } else {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      setHabitData({ ...habitData, [dateStr]: newOrder });
-    }
+    // wait until reorder backend feature or skip
   };
 
-  const handleAddActivity = (activity: NewActivity) => {
-    const IconComponent = ICON_MAP[activity.iconName as keyof typeof ICON_MAP] || Activity;
-    const newHabit: Habit = {
-      id: Math.max(...weeklyHabits.map(h => h.id), 0) + 1,
-      title: activity.name,
-      streak: '0 days',
-      metric: activity.metric,
-      icon: <IconComponent className="text-[#D0705B] w-6 h-6" />,
-      done: false,
-      bg: 'bg-[#FDECE8]',
-      applicableDays: activity.days,
-      category: activity.category,
-      iconName: activity.iconName
-    };
-    setWeeklyHabits([...weeklyHabits, newHabit]);
-    setIsModalOpen(false);
+  const handleAddActivity = async (activity: NewActivity) => {
+    try {
+      const dayMapping: Record<string, string> = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT', 'Sunday': 'SUN' };
+      const mappedDays = (activity.days || []).map(d => dayMapping[d]);
+      
+      const result = await createHabit({
+        name: activity.name,
+        frequency: {
+          type: 'SPECIFIC_DAYS',
+          days: mappedDays as any,
+        },
+        category: activity.category,
+        uiBgColor: 'bg-[#FDECE8]',
+        uiIconName: activity.iconName,
+        uiMetric: activity.metric
+      });
+      if (result.ok) {
+        setIsModalOpen(false);
+      } else {
+        alert(result.error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleEditHabit = (habit: Habit) => {
@@ -468,28 +480,44 @@ const MainContent = ({
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEditedHabit = (editedActivity: EditedActivity) => {
-    const IconComponent = ICON_MAP[editedActivity.iconName as keyof typeof ICON_MAP] || Activity;
-    const updatedHabits = weeklyHabits.map(habit => {
-      if (habit.id === editedActivity.id) {
-        return {
-          ...habit,
-          title: editedActivity.name,
-          metric: editedActivity.metric,
-          category: editedActivity.category,
-          applicableDays: editedActivity.days,
-          icon: <IconComponent className="text-[#D0705B] w-6 h-6" />
-        };
+  const handleSaveEditedHabit = async (editedActivity: EditedActivity) => {
+    try {
+      const dayMapping: Record<string, string> = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT', 'Sunday': 'SUN' };
+      const mappedDays = (editedActivity.days || []).map(d => dayMapping[d]);
+
+      const result = await updateHabit({
+        habitId: String(editedActivity.id),
+        name: editedActivity.name,
+        frequency: {
+          type: 'SPECIFIC_DAYS',
+          days: mappedDays as any,
+        },
+        category: editedActivity.category,
+        uiIconName: editedActivity.iconName,
+        uiMetric: editedActivity.metric
+      });
+      if (result.ok) {
+        setIsEditModalOpen(false);
+        setEditingHabit(null);
+      } else {
+        alert(result.error);
       }
-      return habit;
-    });
-    setWeeklyHabits(updatedHabits);
-    setIsEditModalOpen(false);
-    setEditingHabit(null);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleDeleteHabit = (id: number) => {
-    setWeeklyHabits(weeklyHabits.filter(h => h.id !== id));
+  const handleDeleteHabit = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this habit?")) {
+      try {
+        const result = await archiveHabit(id);
+        if (!result.ok) {
+          alert(result.error);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
   };
 
   const handleEditCategory = (category: string) => {
@@ -497,27 +525,25 @@ const MainContent = ({
     setIsEditCategoryModalOpen(true);
   };
 
-  const handleSaveEditedCategory = (oldName: string, newName: string) => {
-    // Update all habits with the old category name to the new category name
-    const updatedHabits = weeklyHabits.map(habit => {
-      if (habit.category === oldName) {
-        return { ...habit, category: newName };
+  const handleSaveEditedCategory = async (oldName: string, newName: string) => {
+    try {
+      const result = await batchRenameCategory(oldName, newName);
+      if (result.ok) {
+        setIsEditCategoryModalOpen(false);
+        setEditingCategory(null);
+      } else {
+        alert(result.error);
       }
-      return habit;
-    });
-    setWeeklyHabits(updatedHabits);
-    setIsEditCategoryModalOpen(false);
-    setEditingCategory(null);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const getDayProgress = (date: Date) => {
-    const habitsForDay = getHabitsForDate(date);
-    return habitsForDay.length > 0 ? Math.round((habitsForDay.filter(h => h.done).length / habitsForDay.length) * 100) : 0;
+    return 0; // Mock until logs are wired
   };
 
-  const progress = range === 'Weekly' 
-    ? (weeklyHabits.length > 0 ? Math.round((weeklyHabits.filter(h => h.done).length / weeklyHabits.length) * 100) : 0)
-    : getDayProgress(selectedDate);
+  const progress = 0; // Mock until logs are wired
 
   if (pageType === 'habits') {
     return (
@@ -642,7 +668,7 @@ const MainContent = ({
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <HabitsList habits={currentHabits} toggleHabit={toggleHabit} onReorder={handleReorder} isDarkMode={isDarkMode} onAddClick={() => setIsModalOpen(true)} />
+            <HabitsList habits={currentHabits} toggleHabit={toggleHabit} onReorder={handleReorder} isDarkMode={isDarkMode} onAddClick={() => setIsModalOpen(true)} loading={loading} error={error} completionMap={completionMap} />
           </div>
           <div className="space-y-6">
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>

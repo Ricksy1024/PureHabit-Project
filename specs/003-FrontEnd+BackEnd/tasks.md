@@ -15,10 +15,10 @@
 
 **Purpose**: Firebase config updates and shared TypeScript types
 
-- [ ] T001 [P] Define Habit, HabitLog, StreakStatus, and HabitFrequency TypeScript interfaces in `src/types/habit.ts` mirroring Firestore schema from `specs/001-habit-tracker-backend/data-model.md` — include `category`, `uiBgColor`, `uiIconName`, `uiMetric` UI fields
-- [ ] T002 [P] Add Firestore multi-tab offline persistence and Firebase Messaging initialization to `src/config/firebase.ts` — export `messaging` instance; guard messaging init behind `isSupported()` check
-- [ ] T003 [P] Define shared Firestore collection name constants in `src/constants/collections.ts` matching `functions/src/core/models.js` COLLECTIONS values (`users`, `habits`, `habit_logs`, `streak_status`)
-- [ ] T004 [P] Add a `logicalDay` utility function in `src/utils/dateUtils.ts` that derives the current logical date from a timezone string using the 3 AM grace period rule (matching `functions/src/core/date.js` `getLogicalDay`)
+- [x] T001 [P] Define Habit, HabitLog, StreakStatus, and HabitFrequency TypeScript interfaces in `src/types/habit.ts` mirroring Firestore schema from `specs/001-habit-tracker-backend/data-model.md` — include `category`, `uiBgColor`, `uiIconName`, `uiMetric` UI fields
+- [x] T002 [P] Add Firestore multi-tab offline persistence and Firebase Messaging initialization to `src/config/firebase.ts` — export `messaging` instance; guard messaging init behind `isSupported()` check
+- [x] T003 [P] Define shared Firestore collection name constants in `src/constants/collections.ts` matching `functions/src/core/models.js` COLLECTIONS values (`users`, `habits`, `habit_logs`, `streak_status`)
+- [x] T004 [P] Add a `logicalDay` utility function in `src/utils/dateUtils.ts` that derives the current logical date from a timezone string using the 3 AM grace period rule (matching `functions/src/core/date.js` `getLogicalDay`)
 
 **Checkpoint**: Foundation types and config ready — service layer can begin
 
@@ -30,13 +30,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 [BACKEND-CHANGE] Implement `createHabitAction` callable in `functions/src/handlers/api.js` — validate `name`, `frequency.days` via `VALIDATORS`, set `userId` from `requireCallableAuth`, set `archived: false`, `createdAt`/`updatedAt` to server timestamps, return `{ success: true, habitId }`. Follow existing handler pattern (see `setupTOTPHandler`). [SECURITY-GAP] — required because `firestore.rules` sets `allow write: if false` on `habits`
-- [ ] T006 [BACKEND-CHANGE] Implement `updateHabitAction` callable in `functions/src/handlers/api.js` — validate `habitId` ownership via `requireCallableAuth` uid match, merge provided fields (`name`, `frequency`, `reminders`, `category`, `uiBgColor`, `uiIconName`, `uiMetric`), set `updatedAt` to server timestamp. [SECURITY-GAP]
-- [ ] T007 [BACKEND-CHANGE] Implement `archiveHabitAction` callable in `functions/src/handlers/api.js` — validate `habitId` ownership, set `archived: true` and `updatedAt` to server timestamp. [SECURITY-GAP]
-- [ ] T008 [BACKEND-CHANGE] Implement `registerDeviceTokenAction` callable in `functions/src/handlers/api.js` — validate `token` is non-empty string, write to `users/{uid}.pushToken` via `requireCallableAuth`. [SECURITY-GAP]
-- [ ] T009 [BACKEND-CHANGE] Implement `batchRenameCategoryAction` callable in `functions/src/handlers/api.js` — accept `oldName` and `newName`, query all `habits` where `userId == uid` and `category == oldName`, batch-update to `newName` in a single Firestore batch write. [SECURITY-GAP]
-- [ ] T010 [BACKEND-CHANGE] Export all 5 new callables (`createHabitAction`, `updateHabitAction`, `archiveHabitAction`, `registerDeviceTokenAction`, `batchRenameCategoryAction`) from `functions/index.js`
-- [ ] T011 Create `src/services/habitService.ts` implementing: `subscribeToHabits(userId, onData, onError)` using `onSnapshot` on `habits` where `userId == uid` and `archived == false`; `subscribeToStreaks(habitIds, onData, onError)` using `onSnapshot` on `streak_status`; `subscribeToHabitLogs(userId, startDate, endDate, onData, onError)` using `onSnapshot` on `habit_logs` bounded by `dateString` range; `createHabit(data)` calling `createHabitAction` callable; `updateHabit(data)` calling `updateHabitAction` callable; `archiveHabit(habitId)` calling `archiveHabitAction` callable; `syncHabitLog(logs)` calling existing `syncHabitLogs` callable; `batchRenameCategory(oldName, newName)` calling `batchRenameCategoryAction` callable; `registerPushToken(token)` calling `registerDeviceTokenAction` callable; `fetchHabitLogsForRange(userId, startDate, endDate, limit)` using `getDocs` with `limit(1000)` ordered by `dateString` desc. Follow `authService.ts` patterns for error mapping
+- [x] T005 [BACKEND-CHANGE] Implement `createHabitAction` callable in `functions/src/handlers/api.js` — validate `name`, `frequency.days` via `VALIDATORS`, set `userId` from `requireCallableAuth`, set `archived: false`, `createdAt`/`updatedAt` to server timestamps, return `{ success: true, habitId }`. Follow existing handler pattern (see `setupTOTPHandler`). [SECURITY-GAP] — required because `firestore.rules` sets `allow write: if false` on `habits`
+- [x] T006 [BACKEND-CHANGE] Implement `updateHabitAction` callable in `functions/src/handlers/api.js` — validate `habitId` ownership via `requireCallableAuth` uid match, merge provided fields (`name`, `frequency`, `reminders`, `category`, `uiBgColor`, `uiIconName`, `uiMetric`), set `updatedAt` to server timestamp. [SECURITY-GAP]
+- [x] T007 [BACKEND-CHANGE] Implement `archiveHabitAction` callable in `functions/src/handlers/api.js` — validate `habitId` ownership, set `archived: true` and `updatedAt` to server timestamp. [SECURITY-GAP]
+- [x] T008 [BACKEND-CHANGE] Implement `registerDeviceTokenAction` callable in `functions/src/handlers/api.js` — validate `token` is non-empty string, write to `users/{uid}.pushToken` via `requireCallableAuth`. [SECURITY-GAP]
+- [x] T009 [BACKEND-CHANGE] Implement `batchRenameCategoryAction` callable in `functions/src/handlers/api.js` — accept `oldName` and `newName`, query all `habits` where `userId == uid` and `category == oldName`, batch-update to `newName` in a single Firestore batch write. [SECURITY-GAP]
+- [x] T010 [BACKEND-CHANGE] Export all 5 new callables (`createHabitAction`, `updateHabitAction`, `archiveHabitAction`, `registerDeviceTokenAction`, `batchRenameCategoryAction`) from `functions/index.js`
+- [x] T011 Create `src/services/habitService.ts` implementing: `subscribeToHabits(userId, onData, onError)` using `onSnapshot` on `habits` where `userId == uid` and `archived == false`; `subscribeToStreaks(habitIds, onData, onError)` using `onSnapshot` on `streak_status`; `subscribeToHabitLogs(userId, startDate, endDate, onData, onError)` using `onSnapshot` on `habit_logs` bounded by `dateString` range; `createHabit(data)` calling `createHabitAction` callable; `updateHabit(data)` calling `updateHabitAction` callable; `archiveHabit(habitId)` calling `archiveHabitAction` callable; `syncHabitLog(logs)` calling existing `syncHabitLogs` callable; `batchRenameCategory(oldName, newName)` calling `batchRenameCategoryAction` callable; `registerPushToken(token)` calling `registerDeviceTokenAction` callable; `fetchHabitLogsForRange(userId, startDate, endDate, limit)` using `getDocs` with `limit(1000)` ordered by `dateString` desc. Follow `authService.ts` patterns for error mapping
 
 **Checkpoint**: Backend endpoints and service layer ready — hooks can now be built
 
@@ -48,11 +48,11 @@
 
 **Independent Test**: Create a habit through the UI, reload the page, confirm it persists. Verify the Firestore document exists with correct `userId`.
 
-- [ ] T012 [US1] Implement `src/hooks/useHabits.ts` — subscribe to authenticated user's non-archived habits via `habitService.subscribeToHabits`; return `{ habits: Habit[], loading: boolean, error: string | null }`; show skeleton state while `loading` is true; convert Firestore Timestamps to Dates; unsubscribe on unmount; implement 10-second timeout that transitions from loading to error with retry action
-- [ ] T013 [US1] Add skeleton loading component to `src/App.tsx` `HabitsList` — render 3 dimmed habit-card-shaped placeholder elements (matching existing card dimensions and border-radius) when `useHabits` returns `loading: true`; preserve all existing Framer Motion animations
-- [ ] T014 [US1] Add empty state component to `src/App.tsx` `HabitsList` — render "No habits yet" message with Add button when `useHabits` returns `habits.length === 0` and `loading === false`
-- [ ] T015 [US1] Wire `AddActivityModal` submit handler to call `habitService.createHabit` — map form fields (`name`, `metric`, `days`, `category`, `iconName`) to the `createHabitAction` callable payload; show inline error on failure; close modal on success; do NOT apply optimistic update (CRUD requires connectivity per FR-006)
-- [ ] T016 [US1] Replace local `weeklyHabits` state in `src/App.tsx` `MainContent` with `useHabits` hook — remove `useState<Habit[]>` for `weeklyHabits`, replace with `useHabits()` data; update `currentHabits` derivation to use real Firestore data; update `Habit` interface usage to use `src/types/habit.ts` types
+- [x] T012 [US1] Implement `src/hooks/useHabits.ts` — subscribe to authenticated user's non-archived habits via `habitService.subscribeToHabits`; return `{ habits: Habit[], loading: boolean, error: string | null }`; show skeleton state while `loading` is true; convert Firestore Timestamps to Dates; unsubscribe on unmount; implement 10-second timeout that transitions from loading to error with retry action
+- [x] T013 [US1] Add skeleton loading component to `src/App.tsx` `HabitsList` — render 3 dimmed habit-card-shaped placeholder elements (matching existing card dimensions and border-radius) when `useHabits` returns `loading: true`; preserve all existing Framer Motion animations
+- [x] T014 [US1] Add empty state component to `src/App.tsx` `HabitsList` — render "No habits yet" message with Add button when `useHabits` returns `habits.length === 0` and `loading === false`
+- [x] T015 [US1] Wire `AddActivityModal` submit handler to call `habitService.createHabit` — map form fields (`name`, `metric`, `days`, `category`, `iconName`) to the `createHabitAction` callable payload; show inline error on failure; close modal on success; do NOT apply optimistic update (CRUD requires connectivity per FR-006)
+- [x] T016 [US1] Replace local `weeklyHabits` state in `src/App.tsx` `MainContent` with `useHabits` hook — remove `useState<Habit[]>` for `weeklyHabits`, replace with `useHabits()` data; update `currentHabits` derivation to use real Firestore data; update `Habit` interface usage to use `src/types/habit.ts` types
 
 **Checkpoint**: Habits persist to Firestore and load in real-time. Reload shows real data.
 
@@ -64,9 +64,9 @@
 
 **Independent Test**: Edit a habit field, reload, confirm it persists. Archive a habit, confirm it disappears from active list but `habit_logs` remain.
 
-- [ ] T017 [US2] Wire `EditActivityModal` save handler to call `habitService.updateHabit` — map edited fields to `updateHabitAction` callable payload; show inline error on failure; close modal on success; do NOT apply optimistic update
-- [ ] T018 [US2] Wire archive (delete) action in `HabitsPage` to call `habitService.archiveHabit` — replace local `filter` delete with callable invocation; add confirmation dialog before archiving; show inline error on failure; the `onSnapshot` subscription will automatically remove the archived habit from the list
-- [ ] T019 [US2] Add offline detection guard to create/edit/archive operations in `src/services/habitService.ts` — check `navigator.onLine` before calling CRUD callables; if offline, return error result `{ ok: false, error: 'No connection — changes could not be saved. Please retry when online.' }` without making the callable request
+- [x] T017 [US2] Wire `EditActivityModal` save handler to call `habitService.updateHabit` — map edited fields to `updateHabitAction` callable payload; show inline error on failure; close modal on success; do NOT apply optimistic update
+- [x] T018 [US2] Wire archive (delete) action in `HabitsPage` to call `habitService.archiveHabit` — replace local `filter` delete with callable invocation; add confirmation dialog before archiving; show inline error on failure; the `onSnapshot` subscription will automatically remove the archived habit from the list
+- [x] T019 [US2] Add offline detection guard to create/edit/archive operations in `src/services/habitService.ts` — check `navigator.onLine` before calling CRUD callables; if offline, return error result `{ ok: false, error: 'No connection — changes could not be saved. Please retry when online.' }` without making the callable request
 
 **Checkpoint**: Habit CRUD fully wired. Edits and archives persist across reloads.
 

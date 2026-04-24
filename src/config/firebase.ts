@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
+import { getMessaging, isSupported, Messaging } from 'firebase/messaging';
 
 const env = (import.meta as { env?: Record<string, string | undefined> }).env || {};
 
@@ -38,6 +39,16 @@ if (!isFirebaseConfigured && env.DEV === 'true') {
 const app = initializeApp(isFirebaseConfigured ? firebaseConfig : fallbackConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 export const functions = getFunctions(app);
+
+export let messaging: Messaging | null = null;
+isSupported().then((supported) => {
+  if (supported && isFirebaseConfigured) {
+    messaging = getMessaging(app);
+  }
+});
+
 export default app;

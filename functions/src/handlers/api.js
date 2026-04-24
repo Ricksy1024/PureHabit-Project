@@ -253,20 +253,216 @@ async function syncHabitLogsHandler(request, deps = {}) {
   };
 }
 
+// [SECURITY-GAP]
+async function createHabitActionHandler(request, deps = {}) {
+  const dbClient = deps.db || db;
+  const { uid } = requireCallableAuth(request);
+  const data = request.data || {};
+
+  if (!data.name || typeof data.name !== 'string' || data.name.trim().length === 0) {
+    throwHttpsError('invalid-argument', 'Habit name is required.');
+  }
+
+  if (!data.frequency || !VALIDATORS.isValidDays(data.frequency.days)) {
+    throwHttpsError('invalid-argument', 'Valid frequency days are required.');
+  }
+
+  const habitRef = dbClient.collection(COLLECTIONS.HABITS).doc();
+  const habitId = habitRef.id;
+
+  await habitRef.set({
+    id: habitId,
+    userId: uid,
+    name: data.name.trim(),
+    frequency: {
+      type: 'SPECIFIC_DAYS',
+      days: data.frequency.days,
+    },
+    reminders: Array.isArray(data.reminders) ? data.reminders : [],
+    category: data.category || '',
+    uiBgColor: data.uiBgColor || 'bg-blue-500',
+    uiIconName: data.uiIconName || 'Activity',
+    uiMetric: data.uiMetric || 'times',
+    archived: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return { success: true, habitId };
+}
+
+// [SECURITY-GAP]
+async function updateHabitActionHandler(request, deps = {}) {
+  const dbClient = deps.db || db;
+  const { uid } = requireCallableAuth(request);
+  const { habitId, ...updates } = request.data || {};
+
+  if (!habitId) {
+    throwHttpsError('invalid-argument', 'habitId is required.');
+  }
+
+  const habitRef = dbClient.collection(COLLECTIONS.HABITS).doc(habitId);
+  const habitSnap = await habitRef.get();
+
+  if (!habitSnap.exists) {
+    throwHttpsError('not-found', 'Habit not found.');
+  }
+
+  if (habitSnap.data().userId !== uid) {
+    throwHttpsError('permission-denied', 'You do not own this habit.');
+  }
+
+  const payload = { updatedAt: serverTimestamp() };
+  if (updates.name !== undefined) payload.name = updates.name.trim();
+  if (updates.frequency && VALIDATORS.isValidDays(updates.frequency.days)) {
+    payload.frequency = { type: 'SPECIFIC_DAYS', days: updates.frequency.days };
+  }
+  if (updates.reminders !== undefined) payload.reminders = updates.reminders;
+  if (updates.category !== undefined) payload.category = updates.category;
+  if (updates.uiBgColor !== undefined) payload.uiBgColor = updates.uiBgColor;
+  if (updates.uiIconName !== undefined) payload.uiIconName = updates.uiIconName;
+  if (updates.uiMetric !== undefined) payload.uiMetric = updates.uiMetric;
+
+  await habitRef.update(payload);
+
+  return { success: true, habitId };
+}
+
+// [SECURITY-GAP]
+async function archiveHabitActionHandler(request, deps = {}) {
+  const dbClient = deps.db || db;
+  const { uid } = requireCallableAuth(request);
+  const { habitId } = request.data || {};
+
+  if (!habitId) {
+    throwHttpsError('invalid-argument', 'habitId is required.');
+  }
+
+  const habitRef = dbClient.collection(COLLECTIONS.HABITS).doc(habitId);
+  const habitSnap = await habitRef.get();
+
+  if (!habitSnap.exists) {
+    throwHttpsError('not-found', 'Habit not found.');
+  }
+
+  if (habitSnap.data().userId !== uid) {
+    throwHttpsError('permission-denied', 'You do not own this habit.');
+  }
+
+  await habitRef.update({
+    archived: true,
+    updatedAt: serverTimestamp(),
+  });
+
+  return { success: true, habitId };
+}
+
+// [SECURITY-GAP]
+async function registerDeviceTokenActionHandler(request, deps = {}) {
+  const dbClient = deps.db || db;
+  const { uid } = requireCallableAuth(request);
+  const { token } = request.data || {};
+
+  if (!token || typeof token !== 'string') {
+    throwHttpsError('invalid-argument', 'Valid push token is required.');
+  }
+
+  await dbClient.collection(COLLECTIONS.USERS).doc(uid).set({
+    pushToken: token,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+
+  return { success: true };
+}
+
+// [SECURITY-GAP]
+async function batchRenameCategoryActionHandler(request, deps = {}) {
+  const dbClient = deps.db || db;
+  const { uid } = requireCallableAuth(request);
+  const { oldName, newName } = request.data || {};
+
+  if (typeof oldName !== 'string' || typeof newName !== 'string') {
+    throwHttpsError('invalid-argument', 'oldName and newName are required strings.');
+  }
+
+  const habitsQuery = dbClient.collection(COLLECTIONS.HABITS)
+    .where('userId', '==', uid)
+    .where('category', '==', oldName);
+
+  const snapshot = await habitsQuery.get();
+  
+  const batch = dbClient.batch();
+  let count = 0;
+  snapshot.docs.forEach((doc) => {
+    batch.update(doc.ref, { category: newName, updatedAt: serverTimestamp() });
+    count++;
+  });
+
+  if (count > 0) {
+    await batch.commit();
+  }
+
+  return { success: true, updatedCount: count };
+}
+
+// [SECURITY-GAP]
+async function updateUserProfileActionHandler(request, deps = {}) {
+  const dbClient = deps.db || db;
+  const authClient = deps.auth || auth;
+  const { uid } = requireCallableAuth(request);
+  const { displayName, timezone } = request.data || {};
+
+  const updates = { updatedAt: serverTimestamp() };
+  
+  if (displayName !== undefined && typeof displayName === 'string') {
+    await authClient.updateUser(uid, { displayName });
+    updates.displayName = displayName;
+  }
+  
+  if (timezone !== undefined && typeof timezone === 'string') {
+    if (!require('../core/date').isValidTimezone(timezone)) {
+      throwHttpsError('invalid-argument', 'Invalid IANA timezone string.');
+    }
+    updates.timezone = timezone;
+  }
+  
+  await dbClient.collection(COLLECTIONS.USERS).doc(uid).set(updates, { merge: true });
+  
+  return { success: true };
+}
+
 const setupTOTP = onCall(withErrorHandling((request) => setupTOTPHandler(request)));
 const verifyTOTP = onCall(withErrorHandling((request) => verifyTOTPHandler(request)));
 const deleteAccountAction = onCall(
   withErrorHandling((request) => deleteAccountActionHandler(request))
 );
 const syncHabitLogs = onCall(withErrorHandling((request) => syncHabitLogsHandler(request)));
+const createHabitAction = onCall(withErrorHandling((request) => createHabitActionHandler(request)));
+const updateHabitAction = onCall(withErrorHandling((request) => updateHabitActionHandler(request)));
+const archiveHabitAction = onCall(withErrorHandling((request) => archiveHabitActionHandler(request)));
+const registerDeviceTokenAction = onCall(withErrorHandling((request) => registerDeviceTokenActionHandler(request)));
+const batchRenameCategoryAction = onCall(withErrorHandling((request) => batchRenameCategoryActionHandler(request)));
+const updateUserProfileAction = onCall(withErrorHandling((request) => updateUserProfileActionHandler(request)));
 
 module.exports = {
   setupTOTP,
   verifyTOTP,
   deleteAccountAction,
   syncHabitLogs,
+  createHabitAction,
+  updateHabitAction,
+  archiveHabitAction,
+  registerDeviceTokenAction,
+  batchRenameCategoryAction,
+  updateUserProfileAction,
   setupTOTPHandler,
   verifyTOTPHandler,
   deleteAccountActionHandler,
   syncHabitLogsHandler,
+  createHabitActionHandler,
+  updateHabitActionHandler,
+  archiveHabitActionHandler,
+  registerDeviceTokenActionHandler,
+  batchRenameCategoryActionHandler,
+  updateUserProfileActionHandler,
 };

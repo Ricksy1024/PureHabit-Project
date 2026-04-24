@@ -1,30 +1,16 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Trash2, Flame } from 'lucide-react';
-
-interface Habit {
-  id: number;
-  title: string;
-  metric: string;
-  icon: React.ReactNode;
-  applicableDays?: string[];
-  category?: string;
-  streak?: string;
-  done?: boolean;
-  bg?: string;
-  iconName?: string;
-}
+import { Edit2, Trash2, Flame, Apple, Dumbbell, Book, Heart, Moon, Coffee, Smile, Music, Zap, Target, Activity } from 'lucide-react';
+import type { Habit } from '../types/habit';
 
 interface StreakPageProps {
   isDarkMode: boolean;
   habits: Habit[];
   onEdit: (habit: Habit) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }
 
-const StreakCard = ({ habit, isDarkMode, onEdit, onDelete }: { habit: Habit; isDarkMode: boolean; onEdit: (habit: Habit) => void; onDelete: (id: number) => void }) => {
-  const streakCount = habit.streak ? parseInt(habit.streak.split(' ')[0]) : 0;
-  
+const StreakCard = ({ habit, isDarkMode, onEdit, onDelete }: { habit: Habit; isDarkMode: boolean; onEdit: (habit: Habit) => void; onDelete: (id: string) => void }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -37,15 +23,18 @@ const StreakCard = ({ habit, isDarkMode, onEdit, onDelete }: { habit: Habit; isD
     >
       <div className="flex items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-4 flex-1">
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 text-lg ${isDarkMode ? 'bg-[#4A2C24]' : 'bg-[#FDECE8]'}`}>
-            {habit.icon}
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isDarkMode ? habit.uiBgColor.replace('bg-[#FDECE8]', 'bg-[#4A2C24]').replace('bg-[#F2E8E3]', 'bg-[#3A2A24]') : habit.uiBgColor}`}>
+            {(() => {
+              const IconComponent = habit.uiIconName === 'Apple' ? Apple : habit.uiIconName === 'Dumbbell' ? Dumbbell : habit.uiIconName === 'Book' ? Book : habit.uiIconName === 'Heart' ? Heart : habit.uiIconName === 'Moon' ? Moon : habit.uiIconName === 'Flame' ? Flame : habit.uiIconName === 'Coffee' ? Coffee : habit.uiIconName === 'Smile' ? Smile : habit.uiIconName === 'Music' ? Music : habit.uiIconName === 'Zap' ? Zap : habit.uiIconName === 'Target' ? Target : Activity;
+              return <IconComponent className={`w-6 h-6 ${habit.uiBgColor?.includes('FDECE8') || habit.uiBgColor?.includes('blue') ? 'text-[#D0705B]' : 'text-[#A58876]'}`} />;
+            })()}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className={`font-bold text-lg truncate transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-              {habit.title}
+            <h3 className={`font-bold text-base truncate transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+              {habit.name}
             </h3>
-            <p className={`text-sm mt-1 transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
-              {habit.metric}
+            <p className={`text-xs mt-1 transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
+              {habit.uiMetric}
             </p>
           </div>
         </div>
@@ -88,7 +77,6 @@ const StreakCard = ({ habit, isDarkMode, onEdit, onDelete }: { habit: Habit; isD
           </div>
         )}
 
-        {/* Streak Display */}
         <div className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
           isDarkMode ? 'bg-[#D0705B]/20' : 'bg-[#D0705B]/10'
         }`}>
@@ -103,36 +91,22 @@ const StreakCard = ({ habit, isDarkMode, onEdit, onDelete }: { habit: Habit; isD
             animate={{ scale: 1 }}
             className={`text-xl font-bold transition-colors ${isDarkMode ? 'text-[#D0705B]' : 'text-[#D0705B]'}`}
           >
-            {habit.streak || '0 days'}
+            {0} days
           </motion.span>
         </div>
-
-        {habit.applicableDays && habit.applicableDays.length > 0 && (
-          <div className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-            isDarkMode ? 'bg-[#4A2C24]/30' : 'bg-[#E8DCD1]/30'
-          }`}>
-            <span className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>
-              Schedule
-            </span>
-            <span className={`text-sm font-semibold transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-              {habit.applicableDays.join(', ')}
-            </span>
-          </div>
-        )}
       </div>
     </motion.div>
   );
 };
 
 export const StreakPage = ({ isDarkMode, habits, onEdit, onDelete }: StreakPageProps) => {
-  // Sort habits by streak count (descending)
   const sortedHabits = [...habits].sort((a, b) => {
-    const streakA = a.streak ? parseInt(a.streak.split(' ')[0]) : 0;
-    const streakB = b.streak ? parseInt(b.streak.split(' ')[0]) : 0;
-    return streakB - streakA;
+    const aStreak = 0;
+    const bStreak = 0;
+    return bStreak - aStreak;
   });
 
-  const topStreakCount = sortedHabits.length > 0 ? parseInt(sortedHabits[0].streak?.split(' ')[0] || '0') : 0;
+  const topStreakCount = 0;
 
   return (
     <main className="flex-1 p-8 overflow-y-auto z-10">
@@ -165,7 +139,7 @@ export const StreakPage = ({ isDarkMode, habits, onEdit, onDelete }: StreakPageP
                   Your Longest Streak
                 </p>
                 <h2 className={`text-2xl font-bold mt-1 transition-colors ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-                  {sortedHabits[0].title}
+                  {sortedHabits[0].name}
                 </h2>
               </div>
               <motion.div

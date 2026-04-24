@@ -12,7 +12,7 @@ interface EditActivityModalProps {
 }
 
 export interface ActivityToEdit {
-  id: number;
+  id: string;
   name: string;
   metric: string;
   category: string;
@@ -21,7 +21,7 @@ export interface ActivityToEdit {
 }
 
 export interface EditedActivity extends ActivityToEdit {
-  id: number;
+  id: string;
 }
 
 const ICONS = [
@@ -45,7 +45,7 @@ const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
 
 export const EditActivityModal: React.FC<EditActivityModalProps> = ({ isOpen, onClose, onSave, isDarkMode, activity }) => {
   const [formData, setFormData] = useState<EditedActivity>({
-    id: 0,
+    id: '',
     name: '',
     metric: '',
     days: [],
