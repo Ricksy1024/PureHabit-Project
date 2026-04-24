@@ -37,6 +37,7 @@
 - [ ] Coding Standards: Modular, clean Node.js code, proper handling of asynchronous operations (Promises/async-await), and strict adherence to Firebase Cloud Functions best practices.
 - [ ] Testability: Synchronization logic and streak calculations must be written in an isolated manner, fully coverable by unit tests.
 - [ ] AI Agent Tooling: The agent MUST use the Context7 MCP server for retrieving all software documentation. The agent MUST use the Firebase MCP server directly for executing Firebase actions.
+- [ ] Frontend–Backend Contract Integrity: Every piece of meaningful data MUST be persisted to and retrieved from the Firebase backend. No cross-session state may be kept exclusively in React component state or local memory. Habit CRUD, completion toggles (via `syncHabitLogs`), streak data, and user profile data MUST all round-trip through Firestore or Cloud Functions. The canonical timezone for all logical-day calculations is `users.timezone`.
 
 ## Project Structure
 

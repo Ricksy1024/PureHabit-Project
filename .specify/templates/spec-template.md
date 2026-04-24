@@ -102,6 +102,7 @@
 - **CON-003**: System MUST NOT lose any recorded habit completion during sync (conflict resolution MUST use "Logical OR").
 - **CON-004**: System MUST have its synchronization and streak logic completely decoupled and fully covered by unit tests.
 - **CON-005**: AI Agents executing tasks MUST exclusively use the Context7 MCP server for documentation and the Firebase MCP server for Firebase actions.
+- **CON-006**: Every piece of meaningful cross-session data MUST be persisted to and retrieved from the Firebase backend (Firestore or Cloud Functions). No application state meaningful beyond a single browser session may be kept exclusively in React component state or local memory. Habit CRUD, completion toggles (`syncHabitLogs`), streak data (`streak_status` collection), and user profile data (`users` collection) MUST all round-trip through the backend. The canonical timezone for logical-day calculations is `users.timezone`.
 
 ### Key Entities *(include if feature involves data)*
 
