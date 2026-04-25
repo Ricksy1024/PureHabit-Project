@@ -697,3 +697,28 @@ export async function updateUserProfileAction(params: { displayName?: string; ti
     return mapCallableError(error);
   }
 }
+
+export async function deleteAccountAction(): Promise<
+  AuthActionResult<{ message: string }>
+> {
+  const configurationError = ensureFirebaseConfigured<{ message: string }>();
+  if (configurationError) {
+    return configurationError;
+  }
+
+  try {
+    const callable = httpsCallable<
+      Record<string, never>,
+      { success: boolean; message: string }
+    >(functions, 'deleteAccountAction');
+    const result = await callable({});
+    return {
+      ok: true,
+      data: {
+        message: result.data.message,
+      },
+    };
+  } catch (error) {
+    return mapCallableError(error);
+  }
+}

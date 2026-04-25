@@ -78,10 +78,10 @@
 
 **Independent Test**: Toggle a habit complete, verify `habit_logs` document in Firestore. Simulate conflict, confirm `completed: true` wins.
 
-- [ ] T020 [US3] Implement `src/hooks/useHabitLogs.ts` — accept `userId` and `selectedDate`; subscribe to `habit_logs` for that date via `habitService.subscribeToHabitLogs`; expose `completionMap: Record<habitId, boolean>` and `toggleCompletion(habitId, currentValue)` function; implement optimistic toggle (flip local state immediately, call `habitService.syncHabitLog`, revert on error with inline toast); derive `dateString` using `logicalDay` utility from `src/utils/dateUtils.ts` with the user's stored timezone
-- [ ] T021 [US3] Wire dashboard `HabitsList` toggle button to `useHabitLogs.toggleCompletion` — replace local `toggleHabit` function; read completion state from `completionMap`; preserve confetti animation on completion; show error toast on sync failure with revert
-- [ ] T022 [US3] Wire `HabitsPage` completion toggles to `useHabitLogs.toggleCompletion` — same pattern as T021 for the Habits management page
-- [ ] T023 [US3] Update `getDayProgress` and `ProgressSection` in `src/App.tsx` to compute progress from `useHabitLogs` completion map instead of local `done` field — filter habits by their `frequency.days` matching the selected day-of-week before calculating percentage
+- [x] T020 [US3] Implement `src/hooks/useHabitLogs.ts` — accept `userId` and `selectedDate`; subscribe to `habit_logs` for that date via `habitService.subscribeToHabitLogs`; expose `completionMap: Record<habitId, boolean>` and `toggleCompletion(habitId, currentValue)` function; implement optimistic toggle (flip local state immediately, call `habitService.syncHabitLog`, revert on error with inline toast); derive `dateString` using `logicalDay` utility from `src/utils/dateUtils.ts` with the user's stored timezone
+- [x] T021 [US3] Wire dashboard `HabitsList` toggle button to `useHabitLogs.toggleCompletion` — replace local `toggleHabit` function; read completion state from `completionMap`; preserve confetti animation on completion; show error toast on sync failure with revert
+- [x] T022 [US3] Wire `HabitsPage` completion toggles to `useHabitLogs.toggleCompletion` — same pattern as T021 for the Habits management page
+- [x] T023 [US3] Update `getDayProgress` and `ProgressSection` in `src/App.tsx` to compute progress from `useHabitLogs` completion map instead of local `done` field — filter habits by their `frequency.days` matching the selected day-of-week before calculating percentage
 
 **Checkpoint**: Completions round-trip through `syncHabitLogs` with Logical OR. Optimistic UI reverts on failure.
 
@@ -93,10 +93,10 @@
 
 **Independent Test**: Complete a habit, wait for backend trigger, verify UI streak matches `streak_status.currentStreak`.
 
-- [ ] T024 [US4] Implement `src/hooks/useStreaks.ts` — accept array of `habitId`s from `useHabits`; subscribe via `habitService.subscribeToStreaks`; return `{ streakMap: Record<habitId, StreakStatus>, loading: boolean }`; show "0 days" default when no `streak_status` document exists for a habit
-- [ ] T025 [US4] Wire streak display in dashboard `HabitsList` cards to read `currentStreak` from `useStreaks` — replace hardcoded `habit.streak` string with `streakMap[habit.id]?.currentStreak ?? 0` formatted as "X days"; preserve Flame icon styling
-- [ ] T026 [US4] Wire `StreakPage` component to consume `useStreaks` hook — replace hardcoded streak data with real `currentStreak` and `longestStreak` from `streakMap`; show "0 days" for habits without a `streak_status` document
-- [ ] T027 [US4] Wire `HabitsPage` streak display to read from `useStreaks` — same pattern as T025
+- [x] T024 [US4] Implement `src/hooks/useStreaks.ts` — accept array of `habitId`s from `useHabits`; subscribe via `habitService.subscribeToStreaks`; return `{ streakMap: Record<habitId, StreakStatus>, loading: boolean }`; show "0 days" default when no `streak_status` document exists for a habit
+- [x] T025 [US4] Wire streak display in dashboard `HabitsList` cards to read `currentStreak` from `useStreaks` — replace hardcoded `habit.streak` string with `streakMap[habit.id]?.currentStreak ?? 0` formatted as "X days"; preserve Flame icon styling
+- [x] T026 [US4] Wire `StreakPage` component to consume `useStreaks` hook — replace hardcoded streak data with real `currentStreak` and `longestStreak` from `streakMap`; show "0 days" for habits without a `streak_status` document
+- [x] T027 [US4] Wire `HabitsPage` streak display to read from `useStreaks` — same pattern as T025
 
 **Checkpoint**: Streaks update within 5 seconds of completion via backend trigger. No frontend-computed streaks.
 
@@ -108,9 +108,9 @@
 
 **Independent Test**: Log completions, open Statistics, verify percentages match actual `habit_logs` records.
 
-- [ ] T028 [US5] Implement `src/hooks/useStatistics.ts` — accept `userId`, `startDate`, `endDate`; call `habitService.fetchHabitLogsForRange` with `limit(1000)` on range selection (lazy loading); fetch ALL user habits (including archived) for frequency data; calculate completion rate per habit as `completedCount / scheduledDayCount` where `scheduledDayCount` counts only days in range matching `frequency.days`; return `{ stats, loading, error, isCapped }` where `isCapped` is true when result count equals 1000
-- [ ] T029 [US5] Replace all hardcoded mock data in `src/components/StatisticsPage.tsx` with `useStatistics` hook — replace `getStatistics()` function with real data; map real habits to the category performance bars and habit area breakdown; derive categories from habit `category` field; show "No data for this period" empty state when no logs exist; show "Showing data for your most recent habits" notice when `isCapped` is true; preserve all existing Framer Motion animations and Tailwind classes
-- [ ] T030 [US5] Replace hardcoded profile name "Alex Morgan" in `StatisticsPage` header with real user `displayName` from `useAuth` — pass `userDisplayName` prop or consume `useAuth` directly
+- [x] T028 [US5] Implement `src/hooks/useStatistics.ts` — accept `userId`, `startDate`, `endDate`; call `habitService.fetchHabitLogsForRange` with `limit(1000)` on range selection (lazy loading); fetch ALL user habits (including archived) for frequency data; calculate completion rate per habit as `completedCount / scheduledDayCount` where `scheduledDayCount` counts only days in range matching `frequency.days`; return `{ stats, loading, error, isCapped }` where `isCapped` is true when result count equals 1000
+- [x] T029 [US5] Replace all hardcoded mock data in `src/components/StatisticsPage.tsx` with `useStatistics` hook — replace `getStatistics()` function with real data; map real habits to the category performance bars and habit area breakdown; derive categories from habit `category` field; show "No data for this period" empty state when no logs exist; show "Showing data for your most recent habits" notice when `isCapped` is true; preserve all existing Framer Motion animations and Tailwind classes
+- [x] T030 [US5] Replace hardcoded profile name "Alex Morgan" in `StatisticsPage` header with real user `displayName` from `useAuth` — pass `userDisplayName` prop or consume `useAuth` directly
 
 **Checkpoint**: Statistics driven entirely by Firestore. Denominator uses scheduled days only. Archived habit logs included.
 
@@ -122,12 +122,12 @@
 
 **Independent Test**: Change display name, reload, confirm it persists. Delete account, confirm cascade.
 
-- [ ] T031 [BACKEND-CHANGE] [US6] Implement `updateUserProfileAction` callable in `functions/src/handlers/api.js` — accept `displayName` (optional) and `timezone` (optional); if `displayName` provided, call `admin.auth().updateUser(uid, { displayName })` AND update `displayName` on `users/{uid}` document; if `timezone` provided, validate it's a valid IANA timezone string and update `users/{uid}.timezone`; update `updatedAt`. Export from `functions/index.js`. [SECURITY-GAP]
-- [ ] T032 [US6] Add `updateUserProfile(data)` method to `src/services/habitService.ts` — call `updateUserProfileAction` callable
-- [ ] T033 [US6] Wire Settings profile tab to display real data from `useAuth` — replace hardcoded `formData` state (`'Alex Morgan'`, `'alex.morgan@example.com'`) with `authState.user.displayName`, `authState.user.email`, and `authState.profile.timezone`; make email field read-only; add timezone selector field
-- [ ] T034 [US6] Wire Settings save button to call `habitService.updateUserProfile` — persist `displayName` and `timezone` changes; call `refreshAuthState()` after successful save to update the sidebar header name; show success/error feedback
-- [ ] T035 [US6] Wire Settings account deletion to call `deleteAccountAction` callable then sign out — add delete account button to Security tab; require confirmation dialog; call existing `deleteAccountAction` via `authService` pattern; call `signOut()` on success; show error message on failure
-- [ ] T036 [US6] Replace hardcoded sidebar display name "Alex Morgan" in `src/App.tsx` `Sidebar` component with real `userDisplayName` — pass as prop from App's `userDisplayName` derivation
+- [x] T031 [BACKEND-CHANGE] [US6] Implement `updateUserProfileAction` callable in `functions/src/handlers/api.js` — accept `displayName` (optional) and `timezone` (optional); if `displayName` provided, call `admin.auth().updateUser(uid, { displayName })` AND update `displayName` on `users/{uid}` document; if `timezone` provided, validate it's a valid IANA timezone string and update `users/{uid}.timezone`; update `updatedAt`. Export from `functions/index.js`. [SECURITY-GAP]
+- [x] T032 [US6] Add `updateUserProfile(data)` method to `src/services/habitService.ts` — call `updateUserProfileAction` callable
+- [x] T033 [US6] Wire Settings profile tab to display real data from `useAuth` — replace hardcoded `formData` state (`'Alex Morgan'`, `'alex.morgan@example.com'`) with `authState.user.displayName`, `authState.user.email`, and `authState.profile.timezone`; make email field read-only; add timezone selector field
+- [x] T034 [US6] Wire Settings save button to call `habitService.updateUserProfile` — persist `displayName` and `timezone` changes; call `refreshAuthState()` after successful save to update the sidebar header name; show success/error feedback
+- [x] T035 [US6] Wire Settings account deletion to call `deleteAccountAction` callable then sign out — add delete account button to Security tab; require confirmation dialog; call existing `deleteAccountAction` via `authService` pattern; call `signOut()` on success; show error message on failure
+- [x] T036 [US6] Replace hardcoded sidebar display name "Alex Morgan" in `src/App.tsx` `Sidebar` component with real `userDisplayName` — pass as prop from App's `userDisplayName` derivation
 
 **Checkpoint**: Profile data round-trips. Account deletion cascades correctly.
 
@@ -139,8 +139,8 @@
 
 **Independent Test**: Create habits in "Health", verify Categories shows "Health". Rename to "Wellness", confirm all habits update.
 
-- [ ] T037 [US7] Wire `CategoriesPage` to derive categories from `useHabits` data — replace hardcoded category tags with unique `category` values extracted from real habits; group habits by category; hide categories with zero non-archived habits
-- [ ] T038 [US7] Wire category rename in `EditCategoryModal` to call `habitService.batchRenameCategory` — replace local `handleSaveEditedCategory` with callable invocation; the `onSnapshot` subscription will automatically reflect updated category names; show error on failure
+- [x] T037 [US7] Wire `CategoriesPage` to derive categories from `useHabits` data — replace hardcoded category tags with unique `category` values extracted from real habits; group habits by category; hide categories with zero non-archived habits
+- [x] T038 [US7] Wire category rename in `EditCategoryModal` to call `habitService.batchRenameCategory` — replace local `handleSaveEditedCategory` with callable invocation; the `onSnapshot` subscription will automatically reflect updated category names; show error on failure
 
 **Checkpoint**: Categories fully derived from Firestore. Batch rename is atomic.
 
@@ -152,8 +152,8 @@
 
 **Independent Test**: Grant notification permission, verify `users.pushToken` in Firestore.
 
-- [ ] T039 [US8] Add "Enable Notifications" button to Settings notifications tab in `src/components/SettingsModal.tsx` — request `Notification.permission` on click; if granted, call `getToken(messaging)` with VAPID key from env; call `habitService.registerPushToken(token)`; if denied, show explanatory message; if already granted, show "Notifications enabled" status
-- [ ] T040 [US8] Handle FCM token refresh in `src/services/habitService.ts` — use `onMessage(messaging, ...)` listener to handle foreground messages; no background service worker required for this release
+- [x] T039 [US8] Add "Enable Notifications" button to Settings notifications tab in `src/components/SettingsModal.tsx` — request `Notification.permission` on click; if granted, call `getToken(messaging)` with VAPID key from env; call `habitService.registerPushToken(token)`; if denied, show explanatory message; if already granted, show "Notifications enabled" status
+- [x] T040 [US8] Handle FCM token refresh in `src/services/habitService.ts` — use `onMessage(messaging, ...)` listener to handle foreground messages; no background service worker required for this release
 
 **Checkpoint**: FCM token registered. Backend `reminderScheduler` can now deliver notifications.
 
@@ -165,9 +165,9 @@
 
 **Independent Test**: Run `npm test` and verify all new frontend unit tests pass
 
-- [ ] T040a [P] [US1] Unit tests for `src/services/habitService.ts` — Mock Firebase SDK; verify `subscribeToHabits`, `subscribeToHabitLogs`, and CRUD callables handle success and error mappings correctly
-- [ ] T040b [P] [US3] Unit tests for `src/hooks/useHabitLogs.ts` — Verify optimistic UI flip, callable invocation, and rollback on error
-- [ ] T040c [P] [US4] Unit tests for `src/hooks/useHabits.ts` and `src/hooks/useStreaks.ts` — Verify state transitions (loading -> data/error) and subscription cleanup
+- [x] T040a [P] [US1] Unit tests for `src/services/habitService.ts` — Mock Firebase SDK; verify `subscribeToHabits`, `subscribeToHabitLogs`, and CRUD callables handle success and error mappings correctly
+- [x] T040b [P] [US3] Unit tests for `src/hooks/useHabitLogs.ts` — Verify optimistic UI flip, callable invocation, and rollback on error
+- [x] T040c [P] [US4] Unit tests for `src/hooks/useHabits.ts` and `src/hooks/useStreaks.ts` — Verify state transitions (loading -> data/error) and subscription cleanup
 
 ---
 
@@ -175,10 +175,10 @@
 
 **Purpose**: Cleanup, sidebar wiring, and validation
 
-- [ ] T041 Remove all remaining hardcoded/mock habit data from `src/App.tsx` — delete the `getHabitsForDate` function with its seed-based mock data generation; delete inline `Habit` interface definition (replaced by `src/types/habit.ts`); delete `weeklyHabits` initial state array; ensure `habitData` Record state is removed
-- [ ] T042 Wire `ActivityChart` in dashboard to use real completion data — replace `getCompletionForDay` mock calculation with data derived from `useHabitLogs` for the past 7 days
-- [ ] T043 Verify all existing backend Jest tests pass by running `cd functions && npm test` — fix any regressions caused by new callable additions in `api.js`; do NOT modify `functions/src/core/` files
-- [ ] T044 Verify frontend builds and lints cleanly by running `npm run lint && npm run build` from project root
+- [x] T041 Remove all remaining hardcoded/mock habit data from `src/App.tsx` — delete the `getHabitsForDate` function with its seed-based mock data generation; delete inline `Habit` interface definition (replaced by `src/types/habit.ts`); delete `weeklyHabits` initial state array; ensure `habitData` Record state is removed
+- [x] T042 Wire `ActivityChart` in dashboard to use real completion data — replace `getCompletionForDay` mock calculation with data derived from `useHabitLogs` for the past 7 days
+- [x] T043 Verify all existing backend Jest tests pass by running `cd functions && npm test` — fix any regressions caused by new callable additions in `api.js`; do NOT modify `functions/src/core/` files
+- [x] T044 Verify frontend builds and lints cleanly by running `npm run lint && npm run build` from project root
 - [ ] T045 Run quickstart.md validation — open app in two tabs, create a habit in tab 1, verify it appears in tab 2 via `onSnapshot`
 
 ---

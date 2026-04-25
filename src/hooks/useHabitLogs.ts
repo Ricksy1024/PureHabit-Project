@@ -1,18 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { subscribeToHabitLogs, syncHabitLog } from '../services/habitService';
-import { useAuth } from './useAuth';
-import { logicalDay } from '../utils/dateUtils';
 import type { HabitLog } from '../types/habit';
+import { logicalDay } from '../utils/dateUtils';
+import { buildCompletionMap } from '../utils/habitUtils';
+import { useAuth } from './useAuth';
 
 export function useHabitLogs(userId: string | undefined, selectedDate: Date) {
-  const { profile } = useAuth();
+  const { authState } = useAuth();
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const [completionMap, setCompletionMap] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-  const userTimezone = profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const dateString = logicalDay(userTimezone, selectedDate);
+  const timezone =
+    authState.status === 'authenticated_ready' ||
+    authState.status === 'authenticated_pending'
+      ? authState.profile?.timezone ||
+        Intl.DateTimeFormat().resolvedOptions().timeZone
+      : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const dateString = logicalDay(timezone, selectedDate);
 
   useEffect(() => {
     if (!userId) {
@@ -25,8 +32,9 @@ export function useHabitLogs(userId: string | undefined, selectedDate: Date) {
     setLoading(true);
     setError(null);
 
-    let timeoutId = setTimeout(() => {
-      setError('Loading is taking longer than expected. Please check your connection.');
+    const timeoutId = window.setTimeout(() => {
+      setLoading(false);
+      setError('Loading timeout. Please check your connection or retry.');
     }, 10000);
 
     const unsubscribe = subscribeToHabitLogs(
@@ -34,55 +42,56 @@ export function useHabitLogs(userId: string | undefined, selectedDate: Date) {
       dateString,
       dateString,
       (fetchedLogs) => {
-        clearTimeout(timeoutId);
+        window.clearTimeout(timeoutId);
         setLogs(fetchedLogs);
-        
-        const newMap: Record<string, boolean> = {};
-        fetchedLogs.forEach(log => {
-          newMap[log.habitId] = log.completed;
-        });
-        setCompletionMap(newMap);
+        setCompletionMap(buildCompletionMap(fetchedLogs));
         setLoading(false);
         setError(null);
       },
-      (err) => {
-        clearTimeout(timeoutId);
-        console.error('Error fetching habit logs:', err);
-        setError(err.message || 'Failed to fetch habit logs');
+      (subscriptionError) => {
+        window.clearTimeout(timeoutId);
         setLoading(false);
-      }
+        setError(subscriptionError.message || 'Failed to load habit logs.');
+      },
     );
 
     return () => {
-      clearTimeout(timeoutId);
+      window.clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [userId, dateString]);
+  }, [dateString, userId]);
 
-  const toggleCompletion = useCallback(async (habitId: string, currentValue: boolean) => {
-    if (!userId) return;
+  async function toggleCompletion(habitId: string, currentValue: boolean) {
+    if (!userId) {
+      return;
+    }
 
-    // Optimistic update
-    const newValue = !currentValue;
-    setCompletionMap(prev => ({ ...prev, [habitId]: newValue }));
+    const nextValue = !currentValue;
+    setSyncError(null);
+    setCompletionMap((previous) => ({ ...previous, [habitId]: nextValue }));
 
-    try {
-      const result = await syncHabitLog([{
+    const result = await syncHabitLog([
+      {
         habitId,
         dateString,
-        completed: newValue
-      }]);
+        completed: nextValue,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
-      if (!(result as any)?.success) {
-        throw new Error('Sync failed');
-      }
-    } catch (err) {
-      console.error('Error syncing habit log:', err);
-      // Revert on error
-      setCompletionMap(prev => ({ ...prev, [habitId]: currentValue }));
-      alert('Failed to sync completion state. Reverting change.');
+    if (!result.success) {
+      setCompletionMap((previous) => ({ ...previous, [habitId]: currentValue }));
+      setSyncError(result.error || 'Failed to sync completion state.');
     }
-  }, [userId, dateString]);
+  }
 
-  return { completionMap, toggleCompletion, loading, error };
+  return {
+    logs,
+    completionMap,
+    toggleCompletion,
+    loading,
+    error,
+    syncError,
+    clearSyncError: () => setSyncError(null),
+  };
 }

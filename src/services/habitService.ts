@@ -1,16 +1,23 @@
-import { collection, query, where, onSnapshot, getDocs, limit, orderBy } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+  type QueryDocumentSnapshot,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../config/firebase';
+import { onMessage, type MessagePayload } from 'firebase/messaging';
+import { db, functions, messaging } from '../config/firebase';
 import { COLLECTIONS } from '../constants/collections';
 import type { Habit, HabitLog, StreakStatus } from '../types/habit';
 
 interface CreateHabitParams {
   name: string;
-  frequency: {
-    type: 'SPECIFIC_DAYS';
-    days: ('MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN')[];
-  };
-  reminders?: { time: string }[];
+  frequency: Habit['frequency'];
+  reminders?: Habit['reminders'];
   category?: string;
   uiBgColor?: string;
   uiIconName?: string;
@@ -26,177 +33,352 @@ interface BatchRenameCategoryParams {
   newName: string;
 }
 
-export const createHabitAction = async (params: CreateHabitParams) => {
-  const callable = httpsCallable<CreateHabitParams, { success: boolean; habitId: string }>(functions, 'createHabitAction');
+interface UpdateUserProfileParams {
+  displayName?: string;
+  timezone?: string;
+}
+
+const OFFLINE_ERROR =
+  'No connection — changes could not be saved. Please retry when online.';
+
+function isOffline() {
+  return (
+    typeof navigator !== 'undefined' &&
+    'onLine' in navigator &&
+    navigator.onLine === false
+  );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  return fallback;
+}
+
+function toDate(value: unknown) {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate: unknown }).toDate === 'function'
+  ) {
+    return (value as { toDate: () => Date }).toDate();
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    return new Date(value);
+  }
+
+  return new Date();
+}
+
+function mapHabit(snapshot: QueryDocumentSnapshot) {
+  const data = snapshot.data() as Record<string, unknown>;
+  return {
+    id: String(data.id || snapshot.id),
+    userId: String(data.userId || ''),
+    name: String(data.name || ''),
+    frequency: (data.frequency || { type: 'SPECIFIC_DAYS', days: [] }) as Habit['frequency'],
+    reminders: Array.isArray(data.reminders) ? (data.reminders as Habit['reminders']) : [],
+    archived: Boolean(data.archived),
+    category: String(data.category || ''),
+    uiBgColor: String(data.uiBgColor || 'bg-[#FDECE8]'),
+    uiIconName: String(data.uiIconName || 'Activity'),
+    uiMetric: String(data.uiMetric || 'times'),
+    createdAt: toDate(data.createdAt),
+    updatedAt: toDate(data.updatedAt),
+  } satisfies Habit;
+}
+
+function mapHabitLog(snapshot: QueryDocumentSnapshot) {
+  const data = snapshot.data() as Record<string, unknown>;
+  return {
+    id: String(data.id || snapshot.id),
+    habitId: String(data.habitId || ''),
+    userId: String(data.userId || ''),
+    dateString: String(data.dateString || ''),
+    completed: Boolean(data.completed),
+    timestamp: toDate(data.timestamp),
+  } satisfies HabitLog;
+}
+
+function mapStreak(snapshot: QueryDocumentSnapshot) {
+  const data = snapshot.data() as Record<string, unknown>;
+  return {
+    habitId: String(data.habitId || snapshot.id),
+    userId: String(data.userId || ''),
+    currentStreak: Number(data.currentStreak || 0),
+    longestStreak: Number(data.longestStreak || 0),
+    lastEvaluatedDate: String(data.lastEvaluatedDate || ''),
+  } satisfies StreakStatus;
+}
+
+export async function createHabitAction(params: CreateHabitParams) {
+  const callable = httpsCallable<
+    CreateHabitParams,
+    { success: boolean; habitId: string }
+  >(functions, 'createHabitAction');
   const result = await callable(params);
   return result.data;
-};
+}
 
-export const updateHabitAction = async (params: UpdateHabitParams) => {
-  const callable = httpsCallable<UpdateHabitParams, { success: boolean; habitId: string }>(functions, 'updateHabitAction');
+export async function updateHabitAction(params: UpdateHabitParams) {
+  const callable = httpsCallable<
+    UpdateHabitParams,
+    { success: boolean; habitId: string }
+  >(functions, 'updateHabitAction');
   const result = await callable(params);
   return result.data;
-};
+}
 
-export const archiveHabitAction = async (habitId: string) => {
-  const callable = httpsCallable<{ habitId: string }, { success: boolean; habitId: string }>(functions, 'archiveHabitAction');
+export async function archiveHabitAction(habitId: string) {
+  const callable = httpsCallable<
+    { habitId: string },
+    { success: boolean; habitId: string }
+  >(functions, 'archiveHabitAction');
   const result = await callable({ habitId });
   return result.data;
-};
+}
 
-export const createHabit = async (payload: {
-  name: string;
-  frequency: Habit['frequency'];
-  category?: string;
-  uiBgColor?: string;
-  uiIconName?: string;
-  uiMetric?: string;
-}): Promise<{ ok: boolean; habitId?: string; error?: string }> => {
-  if (!navigator.onLine) {
-    return { ok: false, error: 'No connection — changes could not be saved. Please retry when online.' };
+export async function createHabit(payload: CreateHabitParams) {
+  if (isOffline()) {
+    return { ok: false, error: OFFLINE_ERROR };
   }
-  try {
-    const result = await createHabitAction(payload as any);
-    return { ok: true, habitId: (result as any).habitId };
-  } catch (err: any) {
-    console.error('Error creating habit:', err);
-    return { ok: false, error: err.message || 'Failed to create habit' };
-  }
-};
 
-export const updateHabit = async (payload: {
-  habitId: string;
-  name?: string;
-  frequency?: Habit['frequency'];
-  category?: string;
-  uiBgColor?: string;
-  uiIconName?: string;
-  uiMetric?: string;
-}): Promise<{ ok: boolean; error?: string }> => {
-  if (!navigator.onLine) {
-    return { ok: false, error: 'No connection — changes could not be saved. Please retry when online.' };
-  }
   try {
-    await updateHabitAction(payload as any);
+    const result = await createHabitAction(payload);
+    return { ok: true, habitId: result.habitId };
+  } catch (error) {
+    return { ok: false, error: getErrorMessage(error, 'Failed to create habit.') };
+  }
+}
+
+export async function updateHabit(payload: UpdateHabitParams) {
+  if (isOffline()) {
+    return { ok: false, error: OFFLINE_ERROR };
+  }
+
+  try {
+    await updateHabitAction(payload);
     return { ok: true };
-  } catch (err: any) {
-    console.error('Error updating habit:', err);
-    return { ok: false, error: err.message || 'Failed to update habit' };
+  } catch (error) {
+    return { ok: false, error: getErrorMessage(error, 'Failed to update habit.') };
   }
-};
+}
 
-export const archiveHabit = async (habitId: string): Promise<{ ok: boolean; error?: string }> => {
-  if (!navigator.onLine) {
-    return { ok: false, error: 'No connection — changes could not be saved. Please retry when online.' };
+export async function archiveHabit(habitId: string) {
+  if (isOffline()) {
+    return { ok: false, error: OFFLINE_ERROR };
   }
+
   try {
     await archiveHabitAction(habitId);
     return { ok: true };
-  } catch (err: any) {
-    console.error('Error archiving habit:', err);
-    return { ok: false, error: err.message || 'Failed to archive habit' };
+  } catch (error) {
+    return { ok: false, error: getErrorMessage(error, 'Failed to archive habit.') };
   }
-};
+}
 
-export const batchRenameCategoryAction = async (params: BatchRenameCategoryParams) => {
-  const callable = httpsCallable<BatchRenameCategoryParams, { success: boolean; updatedCount: number }>(functions, 'batchRenameCategoryAction');
+export async function batchRenameCategoryAction(params: BatchRenameCategoryParams) {
+  const callable = httpsCallable<
+    BatchRenameCategoryParams,
+    { success: boolean; updatedCount: number }
+  >(functions, 'batchRenameCategoryAction');
   const result = await callable(params);
   return result.data;
-};
+}
 
-export const batchRenameCategory = async (oldName: string, newName: string): Promise<{ ok: boolean; error?: string }> => {
-  if (!navigator.onLine) {
-    return { ok: false, error: 'No connection — changes could not be saved. Please retry when online.' };
+export async function batchRenameCategory(oldName: string, newName: string) {
+  if (isOffline()) {
+    return { ok: false, error: OFFLINE_ERROR };
   }
+
   try {
     await batchRenameCategoryAction({ oldName, newName });
     return { ok: true };
-  } catch (err: any) {
-    console.error('Error batch renaming category:', err);
-    return { ok: false, error: err.message || 'Failed to rename category' };
+  } catch (error) {
+    return {
+      ok: false,
+      error: getErrorMessage(error, 'Failed to rename category.'),
+    };
   }
-};
+}
 
-export const subscribeToHabits = (
+export async function updateUserProfile(params: UpdateUserProfileParams) {
+  try {
+    const callable = httpsCallable<
+      UpdateUserProfileParams,
+      { success: boolean }
+    >(functions, 'updateUserProfileAction');
+    await callable(params);
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: getErrorMessage(error, 'Failed to update your profile.'),
+    };
+  }
+}
+
+export function subscribeToHabits(
   userId: string,
   onData: (habits: Habit[]) => void,
-  onError: (error: Error) => void
-) => {
-  const q = query(
+  onError: (error: Error) => void,
+) {
+  const habitsQuery = query(
     collection(db, COLLECTIONS.HABITS),
     where('userId', '==', userId),
-    where('archived', '==', false)
+    where('archived', '==', false),
   );
-  return onSnapshot(q, (snapshot) => {
-    const habits = snapshot.docs.map((doc) => doc.data() as Habit);
-    onData(habits);
-  }, onError);
-};
 
-export const subscribeToStreaks = (
+  return onSnapshot(
+    habitsQuery,
+    (snapshot) => {
+      onData(snapshot.docs.map(mapHabit));
+    },
+    onError,
+  );
+}
+
+export async function fetchHabitsForUser(
+  userId: string,
+  options: { includeArchived?: boolean } = {},
+) {
+  const constraints = [where('userId', '==', userId)];
+  if (!options.includeArchived) {
+    constraints.push(where('archived', '==', false));
+  }
+
+  const habitsQuery = query(collection(db, COLLECTIONS.HABITS), ...constraints);
+  const snapshot = await getDocs(habitsQuery);
+  return snapshot.docs.map(mapHabit);
+}
+
+export function subscribeToStreaks(
   userId: string,
   onData: (streaks: Record<string, StreakStatus>) => void,
-  onError: (error: Error) => void
-) => {
-  const q = query(
+  onError: (error: Error) => void,
+) {
+  const streaksQuery = query(
     collection(db, COLLECTIONS.STREAK_STATUS),
-    where('userId', '==', userId)
+    where('userId', '==', userId),
   );
-  return onSnapshot(q, (snapshot) => {
-    const streaks: Record<string, StreakStatus> = {};
-    snapshot.docs.forEach((doc) => {
-      const data = doc.data() as StreakStatus;
-      streaks[data.habitId] = data;
-    });
-    onData(streaks);
-  }, onError);
-};
 
-export const subscribeToHabitLogs = (
+  return onSnapshot(
+    streaksQuery,
+    (snapshot) => {
+      const streaks = snapshot.docs.reduce<Record<string, StreakStatus>>(
+        (map, doc) => {
+          const streak = mapStreak(doc);
+          map[streak.habitId] = streak;
+          return map;
+        },
+        {},
+      );
+      onData(streaks);
+    },
+    onError,
+  );
+}
+
+export function subscribeToHabitLogs(
   userId: string,
   startDate: string,
   endDate: string,
   onData: (logs: HabitLog[]) => void,
-  onError: (error: Error) => void
-) => {
-  const q = query(
+  onError: (error: Error) => void,
+) {
+  const logsQuery = query(
     collection(db, COLLECTIONS.HABIT_LOGS),
     where('userId', '==', userId),
     where('dateString', '>=', startDate),
-    where('dateString', '<=', endDate)
+    where('dateString', '<=', endDate),
+    orderBy('dateString', 'asc'),
   );
-  return onSnapshot(q, (snapshot) => {
-    const logs = snapshot.docs.map((doc) => doc.data() as HabitLog);
-    onData(logs);
-  }, onError);
-};
 
-export const fetchHabitLogsForRange = async (
+  return onSnapshot(
+    logsQuery,
+    (snapshot) => {
+      onData(snapshot.docs.map(mapHabitLog));
+    },
+    onError,
+  );
+}
+
+export async function fetchHabitLogsForRange(
   userId: string,
   startDate: string,
   endDate: string,
-  maxLimit: number = 1000
-): Promise<HabitLog[]> => {
-  const q = query(
+  maxLimit = 1000,
+) {
+  const logsQuery = query(
     collection(db, COLLECTIONS.HABIT_LOGS),
     where('userId', '==', userId),
     where('dateString', '>=', startDate),
     where('dateString', '<=', endDate),
     orderBy('dateString', 'desc'),
-    limit(maxLimit)
+    limit(maxLimit),
   );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => doc.data() as HabitLog);
-};
+  const snapshot = await getDocs(logsQuery);
+  return snapshot.docs.map(mapHabitLog);
+}
 
-export const syncHabitLog = async (logs: { habitId: string; dateString: string; completed: boolean; timestamp?: string }[]) => {
-  const callable = httpsCallable<{ logs: any[] }, { success: boolean; processedCount: number }>(functions, 'syncHabitLogs');
-  const result = await callable({ logs });
-  return result.data;
-};
+export async function syncHabitLog(
+  logs: Array<{
+    habitId: string;
+    dateString: string;
+    completed: boolean;
+    timestamp?: string;
+  }>,
+) {
+  try {
+    const callable = httpsCallable<
+      { logs: typeof logs },
+      { success: boolean; processedCount: number }
+    >(functions, 'syncHabitLogs');
+    const result = await callable({ logs });
+    return { success: result.data.success, processedCount: result.data.processedCount };
+  } catch (error) {
+    return {
+      success: false,
+      error: getErrorMessage(error, 'Failed to sync your habit log.'),
+    };
+  }
+}
 
-export const registerPushToken = async (token: string) => {
-  const callable = httpsCallable<{ token: string }, { success: boolean }>(functions, 'registerDeviceTokenAction');
-  const result = await callable({ token });
-  return result.data;
-};
+export async function registerPushToken(token: string) {
+  try {
+    const callable = httpsCallable<{ token: string }, { success: boolean }>(
+      functions,
+      'registerDeviceTokenAction',
+    );
+    await callable({ token });
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: getErrorMessage(error, 'Failed to enable notifications.'),
+    };
+  }
+}
+
+export function listenForForegroundMessages(
+  onNotification: (payload: MessagePayload) => void,
+) {
+  if (!messaging) {
+    return () => {};
+  }
+
+  return onMessage(messaging, onNotification);
+}
