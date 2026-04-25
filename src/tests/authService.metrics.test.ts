@@ -234,6 +234,26 @@ describe('auth service verification metrics', () => {
     expect(enforcedSessions).toBe(20);
   });
 
+  it('keeps app access ready when email is verified even if TOTP is still pending', async () => {
+    const authService = await import('../services/authService');
+
+    const result = await authService.resolveSecurityStatus({
+      emailVerified: true,
+      getIdTokenResult: vi.fn().mockResolvedValue({
+        claims: {
+          totpVerified: false,
+        },
+      }),
+    } as never);
+
+    expect(result).toEqual({
+      emailVerified: true,
+      totpVerified: false,
+      isReady: true,
+      missingSteps: [],
+    });
+  });
+
   it('invokes the deleteUserDataAction callable and returns deleted doc count', async () => {
     hoisted.callableInvoke.mockResolvedValue({
       data: {
@@ -255,5 +275,24 @@ describe('auth service verification metrics', () => {
     });
     expect(hoisted.httpsCallable).toHaveBeenCalledWith({}, 'deleteUserDataAction');
     expect(hoisted.callableInvoke).toHaveBeenCalledWith({});
+  });
+
+  it('returns an actionable TOTP message when protected callables reject destructive actions', async () => {
+    hoisted.callableInvoke.mockRejectedValue(
+      new FirebaseError(
+        'functions/permission-denied',
+        'TOTP verification is required.',
+      ),
+    );
+
+    const authService = await import('../services/authService');
+    const result = await authService.deleteUserDataAction();
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        'Protected actions require authenticator verification. Open Security settings, complete TOTP verification, and try again.',
+      errorCode: 'functions/permission-denied',
+    });
   });
 });

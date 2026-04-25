@@ -9,6 +9,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   isDarkMode: boolean;
+  mode?: 'default' | 'totp';
 }
 
 interface FormState {
@@ -29,7 +30,12 @@ const EMPTY_FORM: FormState = {
   isSubmitting: false,
 };
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMode }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({
+  isOpen,
+  onClose,
+  isDarkMode,
+  mode = 'default',
+}) => {
   const {
     authState,
     cooldownState,
@@ -52,7 +58,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
   const [totpPending, setTotpPending] = useState(false);
   const [verificationPending, setVerificationPending] = useState(false);
 
+  const isAuthenticated =
+    authState.status === 'authenticated_ready' ||
+    authState.status === 'authenticated_pending';
+  const emailVerified = isAuthenticated ? authState.security.emailVerified : false;
+  const totpVerified = isAuthenticated ? authState.security.totpVerified : false;
+  const missingSteps =
+    authState.status === 'authenticated_pending'
+      ? authState.security.missingSteps
+      : [];
   const isPendingAuth = authState.status === 'authenticated_pending';
+  const isTotpMode =
+    mode === 'totp' &&
+    isAuthenticated &&
+    emailVerified &&
+    !totpVerified;
+  const needsStoredTotpVerification =
+    isTotpMode &&
+    authState.profile?.totp?.enabled === true;
 
   const cooldownSeconds = useMemo(() => {
     if (!cooldownState.cooldownUntil) {
@@ -63,11 +86,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
   }, [cooldownState.cooldownUntil]);
 
   useEffect(() => {
-    if (isOpen && authState.status === 'authenticated_ready') {
+    const defaultFlowCompleted =
+      mode === 'default' && authState.status === 'authenticated_ready';
+    const totpFlowCompleted =
+      mode === 'totp' &&
+      isAuthenticated &&
+      emailVerified &&
+      totpVerified;
+
+    if (isOpen && (defaultFlowCompleted || totpFlowCompleted)) {
       setBannerMessage(AUTH_COPY.modalSuccessReady);
       onClose();
     }
-  }, [authState.status, isOpen, onClose]);
+  }, [authState.status, emailVerified, isAuthenticated, isOpen, mode, onClose, totpVerified]);
 
   const updateSignInField = (field: keyof FormState, value: string) => {
     setSignInForm((previous) => ({
@@ -238,11 +269,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
     await refreshAuthState(true);
   };
 
-  const missingSteps =
-    authState.status === 'authenticated_pending'
-      ? authState.security.missingSteps
-      : [];
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -308,7 +334,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                     isDarkMode ? 'text-[#FDF8F3]' : 'text-[#3a2e2a]'
                   }`}
                 >
-                  {isPendingAuth ? AUTH_COPY.modalTitlePending : AUTH_COPY.modalTitleDefault}
+                  {isPendingAuth
+                    ? AUTH_COPY.modalTitlePending
+                    : isTotpMode
+                      ? AUTH_COPY.modalTitleTotp
+                      : AUTH_COPY.modalTitleDefault}
                 </h1>
               </div>
 
@@ -378,70 +408,75 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                     </div>
                   )}
 
-                  {missingSteps.includes('totp_setup') && (
-                    <div
-                      className={`rounded-2xl p-4 border ${
-                        isDarkMode
-                          ? 'border-[#D0705B]/30 bg-[#D0705B]/10'
-                          : 'border-[#D0705B]/25 bg-[#fff3ef]'
-                      }`}
-                    >
-                      <p className={`text-sm font-semibold ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-                        Finish authenticator setup
-                      </p>
-                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-[#EADCCF]' : 'text-[#4A3E37]'}`}>
-                        This release enforces TOTP-based 2FA for protected actions.
-                      </p>
+                </div>
+              ) : isTotpMode ? (
+                <div
+                  className={`rounded-2xl p-4 border ${
+                    isDarkMode
+                      ? 'border-[#D0705B]/30 bg-[#D0705B]/10'
+                      : 'border-[#D0705B]/25 bg-[#fff3ef]'
+                  }`}
+                >
+                  <p className={`text-sm font-semibold ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
+                    Authenticator confirmation
+                  </p>
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-[#EADCCF]' : 'text-[#4A3E37]'}`}>
+                    {needsStoredTotpVerification
+                      ? 'This part of Settings is protected. Enter a fresh 6-digit authenticator code to continue.'
+                      : 'Set up your authenticator now, then verify with a 6-digit code to unlock protected settings.'}
+                  </p>
 
-                      {!totpSecret ? (
-                        <button
-                          onClick={handleSetupTotp}
-                          disabled={totpPending}
-                          className="mt-3 rounded-xl bg-[#D0705B] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white disabled:opacity-60"
-                          type="button"
-                        >
-                          {totpPending ? 'Starting...' : 'Start TOTP setup'}
-                        </button>
-                      ) : (
-                        <div className="mt-3 space-y-3">
+                  {!totpSecret && !needsStoredTotpVerification ? (
+                    <button
+                      onClick={handleSetupTotp}
+                      disabled={totpPending}
+                      className="mt-3 rounded-xl bg-[#D0705B] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white disabled:opacity-60"
+                      type="button"
+                    >
+                      {totpPending ? 'Starting...' : 'Start TOTP setup'}
+                    </button>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      {totpSecret ? (
+                        <>
                           <p className={`text-xs break-all ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
                             <span className="font-semibold">TOTP URI:</span> {totpSecret.qrUri}
                           </p>
                           <p className={`text-xs break-all ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
                             <span className="font-semibold">Manual secret:</span> {totpSecret.secret}
                           </p>
-                          <input
-                            className={`w-full border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#C06C5D]/25 ${
-                              isDarkMode
-                                ? 'bg-[#1a1210]/50 text-[#FDF8F3]'
-                                : 'bg-white/65 text-[#3a2e2a]'
-                            }`}
-                            value={totpToken}
-                            onChange={(event) => {
-                              setTotpToken(event.target.value);
-                              setTotpError(null);
-                            }}
-                            placeholder="Enter 6-digit authenticator code"
-                            inputMode="numeric"
-                            maxLength={6}
-                          />
-                          <button
-                            onClick={handleVerifyTotp}
-                            disabled={totpPending}
-                            className="rounded-xl bg-[#D0705B] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white disabled:opacity-60"
-                            type="button"
-                          >
-                            {totpPending ? 'Verifying...' : 'Verify authenticator code'}
-                          </button>
-                        </div>
-                      )}
-
-                      {totpError && (
-                        <p className={`mt-3 text-xs ${isDarkMode ? 'text-[#ffd9d2]' : 'text-[#8C3B2B]'}`}>
-                          {totpError}
-                        </p>
-                      )}
+                        </>
+                      ) : null}
+                      <input
+                        className={`w-full border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#C06C5D]/25 ${
+                          isDarkMode
+                            ? 'bg-[#1a1210]/50 text-[#FDF8F3]'
+                            : 'bg-white/65 text-[#3a2e2a]'
+                        }`}
+                        value={totpToken}
+                        onChange={(event) => {
+                          setTotpToken(event.target.value);
+                          setTotpError(null);
+                        }}
+                        placeholder="Enter 6-digit authenticator code"
+                        inputMode="numeric"
+                        maxLength={6}
+                      />
+                      <button
+                        onClick={handleVerifyTotp}
+                        disabled={totpPending}
+                        className="rounded-xl bg-[#D0705B] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white disabled:opacity-60"
+                        type="button"
+                      >
+                        {totpPending ? 'Verifying...' : 'Verify authenticator code'}
+                      </button>
                     </div>
+                  )}
+
+                  {totpError && (
+                    <p className={`mt-3 text-xs ${isDarkMode ? 'text-[#ffd9d2]' : 'text-[#8C3B2B]'}`}>
+                      {totpError}
+                    </p>
                   )}
                 </div>
               ) : (

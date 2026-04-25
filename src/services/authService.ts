@@ -174,6 +174,13 @@ function mapAuthError<TData = void>(error: unknown): AuthActionResult<TData> {
 
 function mapCallableError<TData = void>(error: unknown): AuthActionResult<TData> {
   const code = getErrorCode(error);
+  const message =
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+      ? (error as { message: string }).message
+      : null;
 
   switch (code) {
     case 'functions/unavailable':
@@ -184,10 +191,27 @@ function mapCallableError<TData = void>(error: unknown): AuthActionResult<TData>
         error: CONNECTIVITY_ERROR,
         errorCode: code,
       };
+    case 'functions/not-found':
+    case 'functions/unimplemented':
+      return {
+        ok: false,
+        error:
+          'This Firebase action is not deployed yet. Deploy the latest functions and try again.',
+        errorCode: code,
+      };
     case 'functions/unauthenticated':
       return {
         ok: false,
         error: 'You need to sign in again to continue.',
+        errorCode: code,
+      };
+    case 'functions/permission-denied':
+      return {
+        ok: false,
+        error:
+          message === 'TOTP verification is required.'
+            ? 'Protected actions require authenticator verification. Open Security settings, complete TOTP verification, and try again.'
+            : message || 'You do not have permission to perform this action.',
         errorCode: code,
       };
     case 'functions/invalid-argument':
@@ -200,13 +224,7 @@ function mapCallableError<TData = void>(error: unknown): AuthActionResult<TData>
     default:
       return {
         ok: false,
-        error:
-          typeof error === 'object' &&
-          error !== null &&
-          'message' in error &&
-          typeof (error as { message: unknown }).message === 'string'
-            ? (error as { message: string }).message
-            : 'Request failed. Please try again.',
+        error: message || 'Request failed. Please try again.',
         errorCode: code,
       };
   }

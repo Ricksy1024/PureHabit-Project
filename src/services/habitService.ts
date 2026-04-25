@@ -98,6 +98,7 @@ function getErrorCode(error: unknown) {
 
 function mapCallableError(error: unknown, fallback: string) {
   const code = getErrorCode(error);
+  const message = getErrorMessage(error, fallback);
 
   switch (code) {
     case 'functions/unavailable':
@@ -117,10 +118,19 @@ function mapCallableError(error: unknown, fallback: string) {
         error: 'You need to sign in again to continue.',
         errorCode: code,
       };
+    case 'functions/permission-denied':
+      return {
+        ok: false as const,
+        error:
+          message === 'TOTP verification is required.'
+            ? 'This user-data change requires authenticator verification. Open Settings and unlock protected controls first.'
+            : message,
+        errorCode: code,
+      };
     default:
       return {
         ok: false as const,
-        error: getErrorMessage(error, fallback),
+        error: message,
         errorCode: code,
       };
   }

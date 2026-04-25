@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, Lock, LogIn, LogOut, Palette, User, X } from 'lucide-react';
+import {
+  Bell,
+  Lock,
+  LogIn,
+  LogOut,
+  Palette,
+  Shield,
+  Smartphone,
+  User,
+  X,
+} from 'lucide-react';
 import { getToken } from 'firebase/messaging';
 import { messaging } from '../config/firebase';
 import { deleteAccountAction, deleteUserDataAction } from '../services/authService';
@@ -30,6 +40,7 @@ interface ConnectedSettingsModalProps {
   setIsDarkMode: (value: boolean) => void;
   isAuthenticated: boolean;
   onAuthAction: () => void;
+  onOpenAuthModal: () => void;
   authState: AuthState;
   refreshAuthState: (forceRefresh?: boolean) => Promise<void>;
   signOut: () => Promise<{ ok: boolean; error?: string }>;
@@ -42,6 +53,7 @@ export function ConnectedSettingsModal({
   setIsDarkMode,
   isAuthenticated,
   onAuthAction,
+  onOpenAuthModal,
   authState,
   refreshAuthState,
   signOut,
@@ -221,6 +233,8 @@ export function ConnectedSettingsModal({
   const authenticated =
     authState.status === 'authenticated_ready' ||
     authState.status === 'authenticated_pending';
+  const protectedActionsLocked =
+    authenticated && !authState.security.totpVerified;
   const securityFeedbackIsError =
     securityFeedback !== null &&
     !securityFeedback.startsWith('Deleted') &&
@@ -276,7 +290,9 @@ export function ConnectedSettingsModal({
                   { id: 'profile', label: 'Profile', icon: User },
                   { id: 'notifications', label: 'Notifications', icon: Bell },
                   { id: 'appearance', label: 'Appearance', icon: Palette },
+                  { id: 'privacy', label: 'Privacy', icon: Shield },
                   { id: 'security', label: 'Security', icon: Lock },
+                  { id: 'two-factor', label: 'Two-Factor Auth', icon: Smartphone },
                 ].map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -384,14 +400,36 @@ export function ConnectedSettingsModal({
                       </select>
                     </label>
 
+                    {protectedActionsLocked ? (
+                      <div
+                        className={`rounded-2xl px-4 py-3 text-sm ${
+                          isDarkMode
+                            ? 'bg-[#D0705B]/12 text-[#FDF8F3]'
+                            : 'bg-[#fff0ea] text-[#8C3B2B]'
+                        }`}
+                      >
+                        Profile changes are protected. Verify your authenticator before saving user data.
+                      </div>
+                    ) : null}
+
                     <button
                       type="button"
                       onClick={() => void handleSaveProfile()}
-                      disabled={!authenticated || savingProfile}
+                      disabled={!authenticated || protectedActionsLocked || savingProfile}
                       className="rounded-2xl bg-[#D0705B] px-5 py-3 text-white font-semibold disabled:opacity-50"
                     >
                       {savingProfile ? 'Saving...' : 'Save Profile'}
                     </button>
+
+                    {protectedActionsLocked ? (
+                      <button
+                        type="button"
+                        onClick={onOpenAuthModal}
+                        className="rounded-2xl border border-[#D0705B]/35 px-5 py-3 font-semibold text-[#D0705B]"
+                      >
+                        Verify Authenticator To Edit Profile
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -471,7 +509,7 @@ export function ConnectedSettingsModal({
                   </div>
                 ) : null}
 
-                {activeTab === 'security' ? (
+                {activeTab === 'privacy' ? (
                   <div className="max-w-xl space-y-5">
                     <div>
                       <h3
@@ -481,10 +519,10 @@ export function ConnectedSettingsModal({
                             : 'font-serif text-3xl text-[#2A2421]'
                         }
                       >
-                        Security
+                        Privacy
                       </h3>
                       <p className={isDarkMode ? 'mt-2 text-[#A58876]' : 'mt-2 text-[#8A7E7A]'}>
-                        Manage your current session and irreversible account actions.
+                        Manage sensitive data controls and irreversible privacy actions.
                       </p>
                     </div>
 
@@ -503,6 +541,81 @@ export function ConnectedSettingsModal({
                         {securityFeedback}
                       </div>
                     ) : null}
+
+                    <div
+                      className={`rounded-3xl border p-5 ${
+                        isDarkMode
+                          ? 'border-[#4A2C24] bg-[#2A2421]/70'
+                          : 'border-[#E8DCD1] bg-white/70'
+                      }`}
+                    >
+                      <p className={isDarkMode ? 'text-sm font-semibold text-[#FDF8F3]' : 'text-sm font-semibold text-[#2A2421]'}>
+                        Sensitive privacy controls
+                      </p>
+                      <p className={isDarkMode ? 'mt-2 text-sm text-[#A58876]' : 'mt-2 text-sm text-[#8A7E7A]'}>
+                        Habit data deletion and account deletion require a verified authenticator session.
+                      </p>
+
+                      {protectedActionsLocked ? (
+                        <>
+                          <div
+                            className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
+                              isDarkMode
+                                ? 'bg-[#D0705B]/12 text-[#FDF8F3]'
+                                : 'bg-[#fff0ea] text-[#8C3B2B]'
+                            }`}
+                          >
+                            Complete TOTP verification to open this section.
+                          </div>
+                          <button
+                            type="button"
+                            onClick={onOpenAuthModal}
+                            className="mt-4 rounded-2xl bg-[#D0705B] px-5 py-3 font-semibold text-white"
+                          >
+                            Unlock Privacy Controls
+                          </button>
+                        </>
+                      ) : (
+                        <div className="mt-4 space-y-3">
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteData()}
+                            disabled={!authenticated || deletingData || deletingAccount}
+                            className="w-full rounded-2xl px-5 py-3 font-semibold bg-[#B85F4C] text-white disabled:opacity-50"
+                          >
+                            {deletingData ? 'Deleting Data...' : 'Delete Habit Data'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteAccount()}
+                            disabled={!authenticated || deletingAccount || deletingData}
+                            className="w-full rounded-2xl px-5 py-3 font-semibold bg-[#EF5350] text-white disabled:opacity-50"
+                          >
+                            {deletingAccount ? 'Deleting...' : 'Delete Account'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {activeTab === 'security' ? (
+                  <div className="max-w-xl space-y-5">
+                    <div>
+                      <h3
+                        className={
+                          isDarkMode
+                            ? 'font-serif text-3xl text-[#FDF8F3]'
+                            : 'font-serif text-3xl text-[#2A2421]'
+                        }
+                      >
+                        Security
+                      </h3>
+                      <p className={isDarkMode ? 'mt-2 text-[#A58876]' : 'mt-2 text-[#8A7E7A]'}>
+                        Manage your current session and review which settings are protected.
+                      </p>
+                    </div>
 
                     <button
                       type="button"
@@ -526,23 +639,85 @@ export function ConnectedSettingsModal({
                       )}
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteData()}
-                      disabled={!authenticated || deletingData || deletingAccount}
-                      className="w-full rounded-2xl px-5 py-3 font-semibold bg-[#B85F4C] text-white disabled:opacity-50"
+                    <div
+                      className={`rounded-3xl border p-5 ${
+                        isDarkMode
+                          ? 'border-[#4A2C24] bg-[#2A2421]/70'
+                          : 'border-[#E8DCD1] bg-white/70'
+                      }`}
                     >
-                      {deletingData ? 'Deleting Data...' : 'Delete Habit Data'}
-                    </button>
+                      <p className={isDarkMode ? 'text-sm font-semibold text-[#FDF8F3]' : 'text-sm font-semibold text-[#2A2421]'}>
+                        Protected settings
+                      </p>
+                      <p className={isDarkMode ? 'mt-2 text-sm text-[#A58876]' : 'mt-2 text-sm text-[#8A7E7A]'}>
+                        Profile edits and privacy controls are only accessible after TOTP verification.
+                      </p>
 
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteAccount()}
-                      disabled={!authenticated || deletingAccount || deletingData}
-                      className="w-full rounded-2xl px-5 py-3 font-semibold bg-[#EF5350] text-white disabled:opacity-50"
+                      {protectedActionsLocked ? (
+                        <>
+                          <div
+                            className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
+                              isDarkMode
+                                ? 'bg-[#D0705B]/12 text-[#FDF8F3]'
+                                : 'bg-[#fff0ea] text-[#8C3B2B]'
+                            }`}
+                          >
+                            This section is locked until you confirm your authenticator.
+                          </div>
+                          <button
+                            type="button"
+                            onClick={onOpenAuthModal}
+                            className="mt-4 rounded-2xl bg-[#D0705B] px-5 py-3 font-semibold text-white"
+                          >
+                            Complete Authenticator Verification
+                          </button>
+                        </>
+                      ) : (
+                        <div
+                          className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
+                            isDarkMode
+                              ? 'bg-[#D0705B]/12 text-[#FDF8F3]'
+                              : 'bg-[#fff0ea] text-[#8C3B2B]'
+                          }`}
+                        >
+                          Protected settings are unlocked for this verified session. Use Profile to save user data changes and Privacy to manage deletion actions.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {activeTab === 'two-factor' ? (
+                  <div className="max-w-xl space-y-5">
+                    <div>
+                      <h3
+                        className={
+                          isDarkMode
+                            ? 'font-serif text-3xl text-[#FDF8F3]'
+                            : 'font-serif text-3xl text-[#2A2421]'
+                        }
+                      >
+                        Two-Factor Auth
+                      </h3>
+                      <p className={isDarkMode ? 'mt-2 text-[#A58876]' : 'mt-2 text-[#8A7E7A]'}>
+                        Dedicated authenticator setup controls will live here in a future update.
+                      </p>
+                    </div>
+
+                    <div
+                      className={`rounded-3xl border p-5 ${
+                        isDarkMode
+                          ? 'border-[#4A2C24] bg-[#2A2421]/70'
+                          : 'border-[#E8DCD1] bg-white/70'
+                      }`}
                     >
-                      {deletingAccount ? 'Deleting...' : 'Delete Account'}
-                    </button>
+                      <p className={isDarkMode ? 'text-sm font-semibold text-[#FDF8F3]' : 'text-sm font-semibold text-[#2A2421]'}>
+                        Placeholder
+                      </p>
+                      <p className={isDarkMode ? 'mt-2 text-sm text-[#A58876]' : 'mt-2 text-sm text-[#8A7E7A]'}>
+                        Two-factor management is coming soon. For now, the app will ask for TOTP only when you try to change user data or open protected privacy controls.
+                      </p>
+                    </div>
                   </div>
                 ) : null}
               </div>

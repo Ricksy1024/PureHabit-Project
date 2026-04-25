@@ -438,7 +438,7 @@ async function updateUserProfileActionHandler(request, deps = {}) {
   const authClient = deps.auth || auth;
   const { uid } = await requireCallableAuth(
     request,
-    { requireTotp: false },
+    {},
     { auth: authClient }
   );
   const { displayName, timezone } = request.data || {};

@@ -55,7 +55,12 @@ describe('useHabitLogs', () => {
 
     const { useHabitLogs } = await import('../hooks/useHabitLogs');
     const { result } = renderHook(() =>
-      useHabitLogs('user-1', new Date('2026-04-25T12:00:00.000Z')),
+      useHabitLogs(
+        'user-1',
+        new Date('2026-04-25T12:00:00.000Z'),
+        'Today',
+        new Date('2026-04-25T12:00:00.000Z'),
+      ),
     );
 
     await waitFor(() => {
@@ -63,6 +68,59 @@ describe('useHabitLogs', () => {
     });
 
     expect(result.current.completionMap).toEqual({ 'habit-1': true });
+  });
+
+  it('subscribes to the full visible month and exposes day-by-day completion maps', async () => {
+    serviceMock.subscribeToHabitLogs.mockImplementation(
+      (_userId, _startDate, _endDate, onData) => {
+        onData([
+          {
+            id: 'log-1',
+            habitId: 'habit-1',
+            userId: 'user-1',
+            dateString: '2026-04-02',
+            completed: true,
+            timestamp: new Date('2026-04-02T12:00:00.000Z'),
+          },
+          {
+            id: 'log-2',
+            habitId: 'habit-2',
+            userId: 'user-1',
+            dateString: '2026-04-25',
+            completed: true,
+            timestamp: new Date('2026-04-25T12:00:00.000Z'),
+          },
+        ]);
+        return vi.fn();
+      },
+    );
+
+    const { useHabitLogs } = await import('../hooks/useHabitLogs');
+    const { result } = renderHook(() =>
+      useHabitLogs(
+        'user-1',
+        new Date('2026-04-25T12:00:00.000Z'),
+        'Month',
+        new Date('2026-04-15T12:00:00.000Z'),
+      ),
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(serviceMock.subscribeToHabitLogs).toHaveBeenCalledWith(
+      'user-1',
+      '2026-04-01',
+      '2026-04-30',
+      expect.any(Function),
+      expect.any(Function),
+    );
+    expect(result.current.completionMap).toEqual({ 'habit-2': true });
+    expect(result.current.logsByDate).toEqual({
+      '2026-04-02': { 'habit-1': true },
+      '2026-04-25': { 'habit-2': true },
+    });
   });
 
   it('optimistically toggles completion and rolls back on sync failure', async () => {
@@ -93,7 +151,12 @@ describe('useHabitLogs', () => {
 
     const { useHabitLogs } = await import('../hooks/useHabitLogs');
     const { result } = renderHook(() =>
-      useHabitLogs('user-1', new Date('2026-04-25T12:00:00.000Z')),
+      useHabitLogs(
+        'user-1',
+        new Date('2026-04-25T12:00:00.000Z'),
+        'Today',
+        new Date('2026-04-25T12:00:00.000Z'),
+      ),
     );
 
     await waitFor(() => {

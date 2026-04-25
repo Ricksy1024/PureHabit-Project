@@ -13,6 +13,7 @@ export const AUTH_COPY = {
   gateOpenAuthSignIn: 'Open Sign In',
   gateRefreshStatus: 'Refresh Status',
   modalTitlePending: 'Verify your email to continue',
+  modalTitleTotp: 'Unlock protected settings',
   modalTitleDefault: 'Enter your sanctuary',
   modalSuccessReady: 'Authentication complete. Protected actions are now unlocked.',
   modalSuccessSignIn: 'Sign in successful.',

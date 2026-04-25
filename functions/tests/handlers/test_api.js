@@ -4,6 +4,7 @@ const {
   verifyTOTPHandler,
   deleteUserDataActionHandler,
   syncHabitLogsHandler,
+  updateUserProfileActionHandler,
 } = require('../../src/handlers/api');
 
 function base32Decode(encoded) {
@@ -188,6 +189,41 @@ describe('API handlers', () => {
     expect(auth.setCustomUserClaims).toHaveBeenCalledWith('user-1', {
       role: 'admin',
       totpVerified: true,
+    });
+  });
+
+  test('updateUserProfileActionHandler rejects profile changes when totp is not verified', async () => {
+    const db = createDbMock({
+      users: {
+        'user-1': {
+          timezone: 'UTC',
+        },
+      },
+    });
+
+    const auth = {
+      getUser: jest.fn().mockResolvedValue({
+        emailVerified: true,
+        customClaims: {},
+      }),
+    };
+
+    const request = {
+      auth: {
+        uid: 'user-1',
+        token: {
+          email_verified: true,
+        },
+      },
+      data: {
+        displayName: 'Updated Name',
+      },
+    };
+
+    await expect(
+      updateUserProfileActionHandler(request, { db, auth })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
     });
   });
 

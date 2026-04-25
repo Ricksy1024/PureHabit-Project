@@ -7,6 +7,7 @@ import {
   endOfWeek,
   format,
   isSameDay,
+  isToday,
   startOfMonth,
   startOfWeek,
   subMonths,
@@ -325,6 +326,18 @@ function CalendarStrip({
           end: endOfWeek(viewDate, { weekStartsOn: 1 }),
         });
 
+  function handleShiftPeriod(direction: -1 | 1) {
+    if (range === 'Month') {
+      setViewDate(direction < 0 ? subMonths(viewDate, 1) : addMonths(viewDate, 1));
+      return;
+    }
+
+    const shiftedSelectedDate =
+      direction < 0 ? subWeeks(selectedDate, 1) : addWeeks(selectedDate, 1);
+    setSelectedDate(shiftedSelectedDate);
+    setViewDate(shiftedSelectedDate);
+  }
+
   return (
     <div>
       {range !== 'Today' ? (
@@ -332,11 +345,7 @@ function CalendarStrip({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() =>
-              setViewDate(
-                range === 'Month' ? subMonths(viewDate, 1) : subWeeks(viewDate, 1),
-              )
-            }
+            onClick={() => handleShiftPeriod(-1)}
             className={`p-2 rounded-full ${
               isDarkMode ? 'hover:bg-[#4A2C24]/50' : 'hover:bg-[#E8DCD1]/50'
             }`}
@@ -355,11 +364,7 @@ function CalendarStrip({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() =>
-              setViewDate(
-                range === 'Month' ? addMonths(viewDate, 1) : addWeeks(viewDate, 1),
-              )
-            }
+            onClick={() => handleShiftPeriod(1)}
             className={`p-2 rounded-full ${
               isDarkMode ? 'hover:bg-[#4A2C24]/50' : 'hover:bg-[#E8DCD1]/50'
             }`}
@@ -373,6 +378,7 @@ function CalendarStrip({
         {days.map((date) => {
           const progress = getDayProgress(date);
           const active = isSameDay(date, selectedDate);
+          const today = isToday(date);
 
           return (
             <div
@@ -380,7 +386,10 @@ function CalendarStrip({
               className={`flex flex-col items-center gap-3 cursor-pointer group ${
                 range === 'Month' ? 'w-[14.28%]' : ''
               }`}
-              onClick={() => setSelectedDate(date)}
+              onClick={() => {
+                setSelectedDate(date);
+                setViewDate(date);
+              }}
             >
               <span
                 className={`text-[10px] font-bold tracking-widest ${
@@ -424,6 +433,12 @@ function CalendarStrip({
                       : isDarkMode
                         ? 'text-[#FDF8F3]'
                         : 'text-[#2A2421]'
+                  } ${
+                    today && !active
+                      ? isDarkMode
+                        ? 'bg-[#8A6A55]/24 shadow-[0_10px_24px_rgba(138,106,85,0.22)]'
+                        : 'bg-[#C9AE98]/40 shadow-[0_8px_22px_rgba(138,106,85,0.18)]'
+                      : ''
                   }`}
                 >
                   {active ? (
@@ -772,6 +787,7 @@ export default function AppShell() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'default' | 'totp'>('default');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [range, setRange] = useState('Today');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -796,11 +812,12 @@ export default function AppShell() {
         Intl.DateTimeFormat().resolvedOptions().timeZone
       : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const {
+    logsByDate,
     completionMap,
     toggleCompletion,
     syncError,
     clearSyncError,
-  } = useHabitLogs(userId, selectedDate);
+  } = useHabitLogs(userId, selectedDate, range, viewDate);
   const {
     streakMap,
     loading: streakLoading,
@@ -821,6 +838,7 @@ export default function AppShell() {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      setAuthModalMode('default');
       setIsAuthOpen(true);
       setIsSettingsOpen(false);
       setActiveTab('Dashboard');
@@ -849,7 +867,7 @@ export default function AppShell() {
   const dayProgress = (date: Date) => {
     const dateString = calendarDateToLogicalDay(timezone, date);
     const habitsForDate = getHabitsForDateString(habits, dateString);
-    const dateCompletionMap = chartStats.logsByDate[dateString] || {};
+    const dateCompletionMap = logsByDate[dateString] || {};
     return calculateCompletionPercentage(habitsForDate, dateCompletionMap);
   };
 
@@ -992,7 +1010,9 @@ export default function AppShell() {
           setRange={(nextRange) => {
             setRange(nextRange);
             if (nextRange === 'Today' || nextRange === 'Weekly') {
-              setViewDate(new Date());
+              const currentDate = new Date();
+              setSelectedDate(currentDate);
+              setViewDate(currentDate);
             }
           }}
           isDarkMode={isDarkMode}
@@ -1063,7 +1083,10 @@ export default function AppShell() {
           <AuthGatePanel
             authState={authState}
             isDarkMode={isDarkMode}
-            onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenAuth={() => {
+              setAuthModalMode('default');
+              setIsAuthOpen(true);
+            }}
             onRefresh={() => {
               void refreshAuthState(true);
             }}
@@ -1169,11 +1192,18 @@ export default function AppShell() {
           if (isAuthenticated) {
             void signOut();
             setIsSettingsOpen(false);
+            setAuthModalMode('default');
             setIsAuthOpen(true);
             return;
           }
 
           setIsSettingsOpen(false);
+          setAuthModalMode('default');
+          setIsAuthOpen(true);
+        }}
+        onOpenAuthModal={() => {
+          setIsSettingsOpen(false);
+          setAuthModalMode('totp');
           setIsAuthOpen(true);
         }}
         authState={authState}
@@ -1182,10 +1212,13 @@ export default function AppShell() {
       />
       <AuthModal
         isOpen={isAuthOpen}
+        mode={authModalMode}
         onClose={() => {
-          if (isAuthenticated) {
-            setIsAuthOpen(false);
+          if (authModalMode === 'default' && !isAuthenticated) {
+            return;
           }
+          setIsAuthOpen(false);
+          setAuthModalMode('default');
         }}
         isDarkMode={isDarkMode}
       />

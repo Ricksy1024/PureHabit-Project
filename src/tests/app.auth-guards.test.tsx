@@ -93,7 +93,7 @@ function authenticatedPendingState() {
       emailVerified: false,
       totpVerified: false,
       isReady: false,
-      missingSteps: ['email_verification', 'totp_setup'],
+      missingSteps: ['email_verification'],
     },
     profile: null,
     profileStatus: 'loading',
