@@ -8,11 +8,11 @@
       ]
     },
     "firebase": {
-      "command": "npx",
+      "command": "firebase",
       "args": [
-        "-y",
-        "firebase-tools@latest",
-        "mcp"
+        "mcp",
+        "--dir",
+        "/workspaces/PureHabit-Project"
       ]
     }
   }
