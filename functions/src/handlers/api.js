@@ -9,7 +9,7 @@ const {
   decryptTOTPSecret,
   isEncryptedTOTPSecret,
 } = require('../core/auth');
-const { deleteUserDataCascade } = require('../core/deletion');
+const { deleteUserDataCascade, deleteUserHabitData } = require('../core/deletion');
 const { computeMerge } = require('../core/sync');
 const { COLLECTIONS, VALIDATORS } = require('../core/models');
 
@@ -179,6 +179,22 @@ async function deleteAccountActionHandler(request, deps = {}) {
   return {
     success: true,
     message: 'Account scheduled for deletion or instantly deleted.',
+  };
+}
+
+async function deleteUserDataActionHandler(request, deps = {}) {
+  const dbClient = deps.db || db;
+  const authClient = deps.auth || auth;
+  const { uid } = await requireCallableAuth(request, {}, { auth: authClient });
+
+  const result = await deleteUserHabitData(uid, {
+    db: dbClient,
+  });
+
+  return {
+    success: true,
+    deletedDocs: result.deletedDocs,
+    message: 'Habit data deleted.',
   };
 }
 
@@ -451,6 +467,9 @@ const verifyTOTP = onCall(withErrorHandling((request) => verifyTOTPHandler(reque
 const deleteAccountAction = onCall(
   withErrorHandling((request) => deleteAccountActionHandler(request))
 );
+const deleteUserDataAction = onCall(
+  withErrorHandling((request) => deleteUserDataActionHandler(request))
+);
 const syncHabitLogs = onCall(withErrorHandling((request) => syncHabitLogsHandler(request)));
 const createHabitAction = onCall(withErrorHandling((request) => createHabitActionHandler(request)));
 const updateHabitAction = onCall(withErrorHandling((request) => updateHabitActionHandler(request)));
@@ -463,6 +482,7 @@ module.exports = {
   setupTOTP,
   verifyTOTP,
   deleteAccountAction,
+  deleteUserDataAction,
   syncHabitLogs,
   createHabitAction,
   updateHabitAction,
@@ -473,6 +493,7 @@ module.exports = {
   setupTOTPHandler,
   verifyTOTPHandler,
   deleteAccountActionHandler,
+  deleteUserDataActionHandler,
   syncHabitLogsHandler,
   createHabitActionHandler,
   updateHabitActionHandler,

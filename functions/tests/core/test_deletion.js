@@ -1,4 +1,7 @@
-const { deleteUserDataCascade } = require('../../src/core/deletion');
+const {
+  deleteUserHabitData,
+  deleteUserDataCascade,
+} = require('../../src/core/deletion');
 
 describe('deleteUserDataCascade (US2)', () => {
   function createDbMock() {
@@ -56,9 +59,27 @@ describe('deleteUserDataCascade (US2)', () => {
     expect(deletedRefs).toEqual(expect.arrayContaining(['h1', 'h2', 'l1', 's1']));
   });
 
+  test('deletes only habit-related data without deleting auth user', async () => {
+    const { db, batches, userDoc } = createDbMock();
+    const result = await deleteUserHabitData('user-123', { db });
+
+    expect(result.success).toBe(true);
+    expect(result.deletedDocs).toBe(4);
+    expect(userDoc.delete).not.toHaveBeenCalled();
+
+    const deletedRefs = batches.flatMap((entry) => entry.operations);
+    expect(deletedRefs).toEqual(expect.arrayContaining(['h1', 'h2', 'l1', 's1']));
+  });
+
   test('throws when user id is missing', async () => {
     await expect(deleteUserDataCascade('', { db: {}, auth: {} })).rejects.toThrow(
       'userId is required for deletion cascade'
+    );
+  });
+
+  test('throws when db is missing for habit-only deletion', async () => {
+    await expect(deleteUserHabitData('user-123', {})).rejects.toThrow(
+      'db dependency is required'
     );
   });
 });

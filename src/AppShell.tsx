@@ -9,7 +9,6 @@ import {
   isSameDay,
   startOfMonth,
   startOfWeek,
-  subDays,
   subMonths,
   subWeeks,
 } from 'date-fns';
@@ -76,7 +75,7 @@ import {
   DAY_CODE_TO_NAME,
   DAY_NAME_TO_CODE,
   getHabitsForDateString,
-  getPastSevenLogicalDates,
+  getWeekLogicalDates,
 } from './utils/habitUtils';
 import { calendarDateToLogicalDay } from './utils/dateUtils';
 
@@ -811,11 +810,12 @@ export default function AppShell() {
     habits.map((habit) => habit.id),
   );
 
-  const chartStartDate = subDays(selectedDate, 6);
+  const chartStartDate = startOfWeek(selectedDate, { weekStartsOn: 1 });
+  const chartEndDate = endOfWeek(selectedDate, { weekStartsOn: 1 });
   const { stats: chartStats } = useStatistics(
     userId,
     chartStartDate,
-    selectedDate,
+    chartEndDate,
     timezone,
   );
 
@@ -853,7 +853,7 @@ export default function AppShell() {
     return calculateCompletionPercentage(habitsForDate, dateCompletionMap);
   };
 
-  const activityDates = getPastSevenLogicalDates(selectedDate, timezone);
+  const activityDates = getWeekLogicalDates(selectedDate, timezone);
   const activityValues = activityDates.map((dateString) =>
     calculateCompletionPercentage(
       getHabitsForDateString(habits, dateString),

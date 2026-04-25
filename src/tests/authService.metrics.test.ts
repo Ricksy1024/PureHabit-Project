@@ -233,4 +233,27 @@ describe('auth service verification metrics', () => {
 
     expect(enforcedSessions).toBe(20);
   });
+
+  it('invokes the deleteUserDataAction callable and returns deleted doc count', async () => {
+    hoisted.callableInvoke.mockResolvedValue({
+      data: {
+        success: true,
+        message: 'Habit data deleted.',
+        deletedDocs: 7,
+      },
+    });
+
+    const authService = await import('../services/authService');
+    const result = await authService.deleteUserDataAction();
+
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        message: 'Habit data deleted.',
+        deletedDocs: 7,
+      },
+    });
+    expect(hoisted.httpsCallable).toHaveBeenCalledWith({}, 'deleteUserDataAction');
+    expect(hoisted.callableInvoke).toHaveBeenCalledWith({});
+  });
 });

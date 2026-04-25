@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const {
   setupTOTPHandler,
   verifyTOTPHandler,
+  deleteUserDataActionHandler,
   syncHabitLogsHandler,
 } = require('../../src/handlers/api');
 
@@ -411,6 +412,88 @@ describe('API handlers', () => {
     await expect(syncHabitLogsHandler(request, { db })).rejects.toMatchObject({
       code: 'invalid-argument',
     });
+  });
+
+  test('deleteUserDataActionHandler deletes habit data but preserves the auth account', async () => {
+    const store = {
+      users: new Map([['user-1', { timezone: 'UTC' }]]),
+      habits: new Map([['habit-1', { userId: 'user-1' }]]),
+      habit_logs: new Map([
+        [
+          'user-1_habit-1_2026-04-09',
+          {
+            userId: 'user-1',
+            habitId: 'habit-1',
+            dateString: '2026-04-09',
+            completed: true,
+          },
+        ],
+      ]),
+      streak_status: new Map([['habit-1', { userId: 'user-1', currentStreak: 1 }]]),
+    };
+
+    const db = {
+      _store: store,
+      batch: jest.fn(() => {
+        const deletions = [];
+        return {
+          delete: jest.fn((ref) => {
+            deletions.push(ref);
+          }),
+          commit: jest.fn(async () => {
+            deletions.forEach(({ collectionName, id }) => {
+              store[collectionName].delete(id);
+            });
+          }),
+        };
+      }),
+      collection: jest.fn((collectionName) => ({
+        where: jest.fn((_field, _op, value) => ({
+          get: jest.fn().mockResolvedValue({
+            docs: Array.from(store[collectionName].entries())
+              .filter(([, document]) => document.userId === value)
+              .map(([id]) => ({ ref: { collectionName, id } })),
+          }),
+        })),
+        doc: jest.fn((id) => ({
+          get: jest.fn().mockResolvedValue({
+            exists: store[collectionName].has(id),
+            data: () => cloneValue(store[collectionName].get(id)),
+          }),
+          delete: jest.fn(async () => {
+            store[collectionName].delete(id);
+          }),
+        })),
+      })),
+    };
+
+    const auth = {
+      deleteUser: jest.fn(),
+    };
+
+    const request = {
+      auth: {
+        uid: 'user-1',
+        token: {
+          email_verified: true,
+          totpVerified: true,
+        },
+      },
+      data: {},
+    };
+
+    const result = await deleteUserDataActionHandler(request, { db, auth });
+
+    expect(result).toEqual({
+      success: true,
+      deletedDocs: 3,
+      message: 'Habit data deleted.',
+    });
+    expect(Array.from(db._store.habits.entries())).toEqual([]);
+    expect(Array.from(db._store.habit_logs.entries())).toEqual([]);
+    expect(Array.from(db._store.streak_status.entries())).toEqual([]);
+    expect(db._store.users.get('user-1')).toEqual({ timezone: 'UTC' });
+    expect(auth.deleteUser).not.toHaveBeenCalled();
   });
 
   test('syncHabitLogsHandler rejects impossible calendar dates', async () => {

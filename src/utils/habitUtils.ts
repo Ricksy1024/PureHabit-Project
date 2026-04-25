@@ -1,4 +1,11 @@
-import { addDays, eachDayOfInterval, format, subDays } from 'date-fns';
+import {
+  addDays,
+  eachDayOfInterval,
+  endOfWeek,
+  format,
+  startOfWeek,
+  subDays,
+} from 'date-fns';
 import type { Habit, HabitLog } from '../types/habit';
 import { calendarDateToLogicalDay } from './dateUtils';
 
@@ -125,6 +132,18 @@ export function getPastSevenLogicalDates(
   return Array.from({ length: 7 }, (_, index) =>
     shiftDateString(anchorDateString, index - 6),
   );
+}
+
+export function getWeekLogicalDates(
+  anchorDate: Date,
+  timezone: string = 'UTC',
+) {
+  const weekDates = eachDayOfInterval({
+    start: startOfWeek(anchorDate, { weekStartsOn: 1 }),
+    end: endOfWeek(anchorDate, { weekStartsOn: 1 }),
+  });
+
+  return weekDates.map((date) => calendarDateToLogicalDay(timezone, date));
 }
 
 export function countScheduledDays(

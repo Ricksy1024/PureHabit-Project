@@ -752,3 +752,32 @@ export async function deleteAccountAction(): Promise<
     return mapCallableError(error);
   }
 }
+
+export async function deleteUserDataAction(): Promise<
+  AuthActionResult<{ message: string; deletedDocs: number }>
+> {
+  const configurationError = ensureFirebaseConfigured<{
+    message: string;
+    deletedDocs: number;
+  }>();
+  if (configurationError) {
+    return configurationError;
+  }
+
+  try {
+    const callable = httpsCallable<
+      Record<string, never>,
+      { success: boolean; message: string; deletedDocs: number }
+    >(functions, 'deleteUserDataAction');
+    const result = await callable({});
+    return {
+      ok: true,
+      data: {
+        message: result.data.message,
+        deletedDocs: result.data.deletedDocs,
+      },
+    };
+  } catch (error) {
+    return mapCallableError(error);
+  }
+}

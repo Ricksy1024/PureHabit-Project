@@ -35,6 +35,26 @@ async function deleteByUserIdField(dbClient, collectionName, userId) {
   return deleteSnapshotDocs(dbClient, snapshot.docs || []);
 }
 
+async function deleteUserHabitData(userId, deps) {
+  if (!userId) {
+    throw new Error('userId is required for deletion cascade');
+  }
+
+  const dbClient = deps && deps.db;
+
+  if (!dbClient) {
+    throw new Error('db dependency is required');
+  }
+
+  let deletedDocs = 0;
+
+  deletedDocs += await deleteByUserIdField(dbClient, COLLECTIONS.HABITS, userId);
+  deletedDocs += await deleteByUserIdField(dbClient, COLLECTIONS.HABIT_LOGS, userId);
+  deletedDocs += await deleteByUserIdField(dbClient, COLLECTIONS.STREAK_STATUS, userId);
+
+  return { success: true, deletedDocs };
+}
+
 async function deleteUserDataCascade(userId, deps) {
   if (!userId) {
     throw new Error('userId is required for deletion cascade');
@@ -47,11 +67,8 @@ async function deleteUserDataCascade(userId, deps) {
     throw new Error('db and auth dependencies are required');
   }
 
-  let deletedDocs = 0;
-
-  deletedDocs += await deleteByUserIdField(dbClient, COLLECTIONS.HABITS, userId);
-  deletedDocs += await deleteByUserIdField(dbClient, COLLECTIONS.HABIT_LOGS, userId);
-  deletedDocs += await deleteByUserIdField(dbClient, COLLECTIONS.STREAK_STATUS, userId);
+  const deletionResult = await deleteUserHabitData(userId, { db: dbClient });
+  let deletedDocs = deletionResult.deletedDocs;
 
   const userRef = dbClient.collection(COLLECTIONS.USERS).doc(userId);
   const userDoc = await userRef.get();
@@ -66,5 +83,6 @@ async function deleteUserDataCascade(userId, deps) {
 }
 
 module.exports = {
+  deleteUserHabitData,
   deleteUserDataCascade,
 };

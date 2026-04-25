@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, Lock, LogIn, LogOut, Palette, User, X } from 'lucide-react';
 import { getToken } from 'firebase/messaging';
 import { messaging } from '../config/firebase';
-import { deleteAccountAction } from '../services/authService';
+import { deleteAccountAction, deleteUserDataAction } from '../services/authService';
 import {
   listenForForegroundMessages,
   registerPushToken,
@@ -57,6 +57,7 @@ export function ConnectedSettingsModal({
   const [securityFeedback, setSecurityFeedback] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [enablingNotifications, setEnablingNotifications] = useState(false);
+  const [deletingData, setDeletingData] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
@@ -190,9 +191,40 @@ export function ConnectedSettingsModal({
     onClose();
   }
 
+  async function handleDeleteData() {
+    const confirmed = window.confirm(
+      'Delete all habits, archived habits, completion logs, and streak data while keeping your account?',
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingData(true);
+    setSecurityFeedback(null);
+
+    const result = await deleteUserDataAction();
+    if (!result.ok) {
+      setSecurityFeedback(result.error || 'Failed to delete your habit data.');
+      setDeletingData(false);
+      return;
+    }
+
+    const deletedDocs = result.data?.deletedDocs ?? 0;
+    setSecurityFeedback(
+      deletedDocs > 0
+        ? `Deleted ${deletedDocs} habit data record${deletedDocs === 1 ? '' : 's'}.`
+        : 'No habit data was found to delete.',
+    );
+    setDeletingData(false);
+  }
+
   const authenticated =
     authState.status === 'authenticated_ready' ||
     authState.status === 'authenticated_pending';
+  const securityFeedbackIsError =
+    securityFeedback !== null &&
+    !securityFeedback.startsWith('Deleted') &&
+    securityFeedback !== 'No habit data was found to delete.';
 
   return (
     <AnimatePresence>
@@ -459,9 +491,13 @@ export function ConnectedSettingsModal({
                     {securityFeedback ? (
                       <div
                         className={`rounded-2xl px-4 py-3 text-sm ${
-                          isDarkMode
-                            ? 'bg-[#EF5350]/15 text-[#F5C5BA]'
-                            : 'bg-[#EF5350]/10 text-[#8C3B2B]'
+                          securityFeedbackIsError
+                            ? isDarkMode
+                              ? 'bg-[#EF5350]/15 text-[#F5C5BA]'
+                              : 'bg-[#EF5350]/10 text-[#8C3B2B]'
+                            : isDarkMode
+                              ? 'bg-[#D0705B]/20 text-[#FDF8F3]'
+                              : 'bg-[#D0705B]/10 text-[#8C3B2B]'
                         }`}
                       >
                         {securityFeedback}
@@ -492,8 +528,17 @@ export function ConnectedSettingsModal({
 
                     <button
                       type="button"
+                      onClick={() => void handleDeleteData()}
+                      disabled={!authenticated || deletingData || deletingAccount}
+                      className="w-full rounded-2xl px-5 py-3 font-semibold bg-[#B85F4C] text-white disabled:opacity-50"
+                    >
+                      {deletingData ? 'Deleting Data...' : 'Delete Habit Data'}
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => void handleDeleteAccount()}
-                      disabled={!authenticated || deletingAccount}
+                      disabled={!authenticated || deletingAccount || deletingData}
                       className="w-full rounded-2xl px-5 py-3 font-semibold bg-[#EF5350] text-white disabled:opacity-50"
                     >
                       {deletingAccount ? 'Deleting...' : 'Delete Account'}
