@@ -8,6 +8,7 @@ const hoisted = vi.hoisted(() => {
     },
     signInWithEmailAndPassword: vi.fn(),
     createUserWithEmailAndPassword: vi.fn(),
+    sendEmailVerification: vi.fn(),
     sendPasswordResetEmail: vi.fn(),
     signOut: vi.fn(),
     updateProfile: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('firebase/auth', () => {
   return {
     signInWithEmailAndPassword: hoisted.signInWithEmailAndPassword,
     createUserWithEmailAndPassword: hoisted.createUserWithEmailAndPassword,
+    sendEmailVerification: hoisted.sendEmailVerification,
     sendPasswordResetEmail: hoisted.sendPasswordResetEmail,
     signOut: hoisted.signOut,
     updateProfile: hoisted.updateProfile,
@@ -72,6 +74,7 @@ describe('auth service verification metrics', () => {
 
     hoisted.signInWithEmailAndPassword.mockReset();
     hoisted.createUserWithEmailAndPassword.mockReset();
+    hoisted.sendEmailVerification.mockReset();
     hoisted.sendPasswordResetEmail.mockReset();
     hoisted.signOut.mockReset();
     hoisted.updateProfile.mockReset();
@@ -126,6 +129,7 @@ describe('auth service verification metrics', () => {
       };
     });
     hoisted.updateProfile.mockResolvedValue(undefined);
+    hoisted.sendEmailVerification.mockResolvedValue(undefined);
 
     const authService = await import('../services/authService');
 
@@ -144,6 +148,7 @@ describe('auth service verification metrics', () => {
     }
 
     expect(successful / 20).toBeGreaterThanOrEqual(0.95);
+    expect(hoisted.sendEmailVerification).toHaveBeenCalledTimes(20);
   });
 
   it('SC-003 failure matrix: 30 failure events return actionable error messages', async () => {

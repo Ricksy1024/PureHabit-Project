@@ -322,7 +322,7 @@ describe('API handlers', () => {
     expect(db.runTransaction).toHaveBeenCalledTimes(2);
   });
 
-  test('syncHabitLogsHandler blocks requests without totp verification', async () => {
+  test('syncHabitLogsHandler allows verified-email requests without totp verification', async () => {
     const request = {
       auth: {
         uid: 'user-1',
@@ -333,8 +333,9 @@ describe('API handlers', () => {
       data: { logs: [] },
     };
 
-    await expect(syncHabitLogsHandler(request, { db: {} })).rejects.toMatchObject({
-      code: 'permission-denied',
+    await expect(syncHabitLogsHandler(request, { db: createDbMock() })).resolves.toEqual({
+      success: true,
+      processedCount: 0,
     });
   });
 

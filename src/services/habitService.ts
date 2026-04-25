@@ -1,3 +1,4 @@
+import { FirebaseError } from 'firebase/app';
 import {
   collection,
   getDocs,
@@ -10,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { onMessage, type MessagePayload } from 'firebase/messaging';
-import { db, functions, messaging } from '../config/firebase';
+import { db, functions, isFirebaseConfigured, messaging } from '../config/firebase';
 import { COLLECTIONS } from '../constants/collections';
 import type { Habit, HabitLog, StreakStatus } from '../types/habit';
 
@@ -40,6 +41,10 @@ interface UpdateUserProfileParams {
 
 const OFFLINE_ERROR =
   'No connection — changes could not be saved. Please retry when online.';
+const CONNECTIVITY_ERROR =
+  'Unable to connect. Check your connection and try again.';
+const FIREBASE_CONFIG_ERROR =
+  'Firebase is not configured. Set VITE_FIREBASE_* values in .env.';
 
 function isOffline() {
   return (
@@ -60,6 +65,65 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function ensureFirebaseConfigured() {
+  if (isFirebaseConfigured) {
+    return null;
+  }
+
+  return {
+    ok: false as const,
+    error: FIREBASE_CONFIG_ERROR,
+    errorCode: 'client/firebase-not-configured',
+  };
+}
+
+function getErrorCode(error: unknown) {
+  if (error instanceof FirebaseError) {
+    return error.code;
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof (error as { code: unknown }).code === 'string'
+  ) {
+    return (error as { code: string }).code;
+  }
+
+  return 'unknown';
+}
+
+function mapCallableError(error: unknown, fallback: string) {
+  const code = getErrorCode(error);
+
+  switch (code) {
+    case 'functions/unavailable':
+    case 'functions/internal':
+    case 'auth/network-request-failed':
+      return { ok: false as const, error: CONNECTIVITY_ERROR, errorCode: code };
+    case 'functions/not-found':
+    case 'functions/unimplemented':
+      return {
+        ok: false as const,
+        error: 'Habit write backend is not deployed. Deploy the latest Firebase functions.',
+        errorCode: code,
+      };
+    case 'functions/unauthenticated':
+      return {
+        ok: false as const,
+        error: 'You need to sign in again to continue.',
+        errorCode: code,
+      };
+    default:
+      return {
+        ok: false as const,
+        error: getErrorMessage(error, fallback),
+        errorCode: code,
+      };
+  }
 }
 
 function toDate(value: unknown) {
@@ -152,6 +216,11 @@ export async function archiveHabitAction(habitId: string) {
 }
 
 export async function createHabit(payload: CreateHabitParams) {
+  const configurationError = ensureFirebaseConfigured();
+  if (configurationError) {
+    return configurationError;
+  }
+
   if (isOffline()) {
     return { ok: false, error: OFFLINE_ERROR };
   }
@@ -160,11 +229,16 @@ export async function createHabit(payload: CreateHabitParams) {
     const result = await createHabitAction(payload);
     return { ok: true, habitId: result.habitId };
   } catch (error) {
-    return { ok: false, error: getErrorMessage(error, 'Failed to create habit.') };
+    return mapCallableError(error, 'Failed to create habit.');
   }
 }
 
 export async function updateHabit(payload: UpdateHabitParams) {
+  const configurationError = ensureFirebaseConfigured();
+  if (configurationError) {
+    return configurationError;
+  }
+
   if (isOffline()) {
     return { ok: false, error: OFFLINE_ERROR };
   }
@@ -173,11 +247,16 @@ export async function updateHabit(payload: UpdateHabitParams) {
     await updateHabitAction(payload);
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: getErrorMessage(error, 'Failed to update habit.') };
+    return mapCallableError(error, 'Failed to update habit.');
   }
 }
 
 export async function archiveHabit(habitId: string) {
+  const configurationError = ensureFirebaseConfigured();
+  if (configurationError) {
+    return configurationError;
+  }
+
   if (isOffline()) {
     return { ok: false, error: OFFLINE_ERROR };
   }
@@ -186,7 +265,7 @@ export async function archiveHabit(habitId: string) {
     await archiveHabitAction(habitId);
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: getErrorMessage(error, 'Failed to archive habit.') };
+    return mapCallableError(error, 'Failed to archive habit.');
   }
 }
 
@@ -200,6 +279,11 @@ export async function batchRenameCategoryAction(params: BatchRenameCategoryParam
 }
 
 export async function batchRenameCategory(oldName: string, newName: string) {
+  const configurationError = ensureFirebaseConfigured();
+  if (configurationError) {
+    return configurationError;
+  }
+
   if (isOffline()) {
     return { ok: false, error: OFFLINE_ERROR };
   }
@@ -208,10 +292,7 @@ export async function batchRenameCategory(oldName: string, newName: string) {
     await batchRenameCategoryAction({ oldName, newName });
     return { ok: true };
   } catch (error) {
-    return {
-      ok: false,
-      error: getErrorMessage(error, 'Failed to rename category.'),
-    };
+    return mapCallableError(error, 'Failed to rename category.');
   }
 }
 

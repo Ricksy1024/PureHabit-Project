@@ -3,6 +3,7 @@ import {
   type User,
   createUserWithEmailAndPassword,
   onIdTokenChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
@@ -388,10 +389,42 @@ export async function signUpWithEmail(
       await updateProfile(credential.user, { displayName });
     }
 
+    await sendEmailVerification(credential.user);
+
     return {
       ok: true,
       data: {
         user: credential.user,
+      },
+    };
+  } catch (error) {
+    return mapAuthError(error);
+  }
+}
+
+export async function requestEmailVerification(): Promise<
+  AuthActionResult<{ message: string }>
+> {
+  const configurationError = ensureFirebaseConfigured<{ message: string }>();
+  if (configurationError) {
+    return configurationError;
+  }
+
+  const user = auth.currentUser;
+  if (!user) {
+    return {
+      ok: false,
+      error: 'You need to sign in again to continue.',
+      errorCode: 'auth/no-current-user',
+    };
+  }
+
+  try {
+    await sendEmailVerification(user);
+    return {
+      ok: true,
+      data: {
+        message: 'Verification email sent. Check your inbox and spam folder.',
       },
     };
   } catch (error) {
@@ -555,14 +588,11 @@ export async function resolveSecurityStatus(
   if (!emailVerified) {
     missingSteps.push('email_verification');
   }
-  if (!totpVerified) {
-    missingSteps.push('totp_setup');
-  }
 
   return {
     emailVerified,
     totpVerified,
-    isReady: missingSteps.length === 0,
+    isReady: emailVerified,
     missingSteps,
   };
 }

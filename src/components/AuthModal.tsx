@@ -36,6 +36,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
     signIn,
     signUp,
     sendPasswordReset,
+    sendEmailVerification,
     setupTotp,
     verifyTotp,
     refreshAuthState,
@@ -49,6 +50,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
   const [totpToken, setTotpToken] = useState('');
   const [totpError, setTotpError] = useState<string | null>(null);
   const [totpPending, setTotpPending] = useState(false);
+  const [verificationPending, setVerificationPending] = useState(false);
 
   const isPendingAuth = authState.status === 'authenticated_pending';
 
@@ -152,7 +154,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
     }
 
     setBannerMessage(AUTH_COPY.modalSuccessSignUp);
-    setActiveTab('signin');
     setSignUpForm((previous) => ({
       ...previous,
       isSubmitting: false,
@@ -179,6 +180,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
     }
 
     setBannerMessage(result.data?.message || 'Reset request accepted.');
+  };
+
+  const handleResendVerification = async () => {
+    setVerificationPending(true);
+    setSignInForm((previous) => ({
+      ...previous,
+      error: null,
+      fieldErrors: {},
+    }));
+
+    const result = await sendEmailVerification();
+    setVerificationPending(false);
+
+    if (!result.ok) {
+      setSignInForm((previous) => ({
+        ...previous,
+        error: result.error || AUTH_COPY.modalSignInErrorFallback,
+        fieldErrors: result.fieldErrors || {},
+      }));
+      return;
+    }
+
+    setBannerMessage(result.data?.message || AUTH_COPY.modalSuccessEmailVerification);
   };
 
   const handleSetupTotp = async () => {
@@ -338,6 +362,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                         type="button"
                       >
                         I have verified my email
+                      </button>
+                      <button
+                        onClick={() => {
+                          void handleResendVerification();
+                        }}
+                        disabled={verificationPending}
+                        className="mt-3 ml-3 rounded-xl border border-[#D0705B]/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#D0705B] disabled:opacity-60"
+                        type="button"
+                      >
+                        {verificationPending
+                          ? 'Sending...'
+                          : AUTH_COPY.modalResendVerification}
                       </button>
                     </div>
                   )}

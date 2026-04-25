@@ -16,6 +16,7 @@ import {
   requestPasswordReset,
   resolveSecurityStatus,
   refreshUser,
+  requestEmailVerification,
   setupTOTP,
   signInWithEmail,
   signOutUser,
@@ -40,6 +41,7 @@ interface AuthContextValue {
   sendPasswordReset: (
     email: string,
   ) => Promise<AuthActionResult<{ message: string }>>;
+  sendEmailVerification: () => Promise<AuthActionResult<{ message: string }>>;
   setupTotp: () => Promise<AuthActionResult<{ secret: string; qrUri: string }>>;
   verifyTotp: (token: string) => Promise<AuthActionResult<{ valid: boolean }>>;
   refreshAuthState: (forceRefresh?: boolean) => Promise<void>;
@@ -98,25 +100,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           : incomingUser;
 
         const security = await resolveSecurityStatus(user, options.forceRefresh);
-        const relaxedSecurity = {
-          ...security,
-          // TODO(auth-verification-coming-soon): Re-enable verification gate when email + TOTP flow is shipped.
-          isReady: true,
-          // TODO(auth-verification-coming-soon): Restore missing verification steps when gating is re-enabled.
-          missingSteps: [],
-        };
         if (currentSequence !== sequenceRef.current) {
           return;
         }
 
         setAuthState({
-          // TODO(auth-verification-coming-soon): Restore conditional status based on verification readiness.
-          // status: security.isReady
-          //   ? 'authenticated_ready'
-          //   : 'authenticated_pending',
-          status: 'authenticated_ready',
+          status: security.isReady
+            ? 'authenticated_ready'
+            : 'authenticated_pending',
           user,
-          security: relaxedSecurity,
+          security,
           profile: null,
           profileStatus: 'loading',
           message: null,
@@ -150,9 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ) {
             profileRetryWindowRef.current = null;
             setAuthState({
-              status: 'authenticated_ready',
+              status: security.isReady
+                ? 'authenticated_ready'
+                : 'authenticated_pending',
               user,
-              security: relaxedSecurity,
+              security,
               profile: null,
               profileStatus: 'ready',
               message: null,
@@ -164,13 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setAuthState({
-          // TODO(auth-verification-coming-soon): Restore conditional status based on verification readiness.
-          // status: security.isReady
-          //   ? 'authenticated_ready'
-          //   : 'authenticated_pending',
-          status: 'authenticated_ready',
+          status: security.isReady
+            ? 'authenticated_ready'
+            : 'authenticated_pending',
           user,
-          security: relaxedSecurity,
+          security,
           profile: profileResult.profile,
           profileStatus: profileResult.profileStatus,
           message: profileResult.message,
@@ -268,6 +261,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return requestPasswordReset(email);
   }, []);
 
+  const sendEmailVerification = useCallback(() => {
+    return requestEmailVerification();
+  }, []);
+
   const setupTotp = useCallback(() => {
     return setupTOTP();
   }, []);
@@ -300,6 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       sendPasswordReset,
+      sendEmailVerification,
       setupTotp,
       verifyTotp,
       refreshAuthState,
@@ -308,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authState,
       cooldownState,
       refreshAuthState,
+      sendEmailVerification,
       sendPasswordReset,
       setupTotp,
       signIn,

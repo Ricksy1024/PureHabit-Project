@@ -778,12 +778,9 @@ export default function AppShell() {
   const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
   const [pageFeedback, setPageFeedback] = useState<string | null>(null);
 
-  const isAuthenticated =
-    authState.status === 'authenticated_ready' ||
-    authState.status === 'authenticated_pending';
+  const isAuthenticated = authState.status === 'authenticated_ready';
   const userId =
-    authState.status === 'authenticated_ready' ||
-    authState.status === 'authenticated_pending'
+    authState.status === 'authenticated_ready'
       ? authState.user.uid
       : undefined;
   const { habits, loading: habitsLoading, error: habitsError } = useHabits(userId);

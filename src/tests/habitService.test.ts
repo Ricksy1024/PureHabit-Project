@@ -27,18 +27,26 @@ const messagingMock = vi.hoisted(() => ({
   onMessage: vi.fn(),
 }));
 
+const firebaseConfigMock = vi.hoisted(() => ({
+  isFirebaseConfigured: true,
+}));
+
 vi.mock('firebase/firestore', () => firestoreMock);
 vi.mock('firebase/functions', () => functionsMock);
 vi.mock('firebase/messaging', () => messagingMock);
 vi.mock('../config/firebase', () => ({
   db: {},
   functions: {},
+  get isFirebaseConfigured() {
+    return firebaseConfigMock.isFirebaseConfigured;
+  },
   messaging: null,
 }));
 
 describe('habitService', () => {
   beforeEach(() => {
     vi.resetModules();
+    firebaseConfigMock.isFirebaseConfigured = true;
     firestoreMock.collection.mockReset();
     firestoreMock.getDocs.mockReset();
     firestoreMock.limit.mockClear();
@@ -166,8 +174,46 @@ describe('habitService', () => {
     expect(callable).toHaveBeenCalled();
   });
 
+  it('returns a configuration error when Firebase env is missing', async () => {
+    firebaseConfigMock.isFirebaseConfigured = false;
+
+    const { createHabit } = await import('../services/habitService');
+    const result = await createHabit({
+      name: 'Read',
+      frequency: { type: 'SPECIFIC_DAYS', days: ['MON'] },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Firebase is not configured. Set VITE_FIREBASE_* values in .env.',
+      errorCode: 'client/firebase-not-configured',
+    });
+    expect(functionsMock.httpsCallable).not.toHaveBeenCalled();
+  });
+
+  it('returns a deployment error when the callable backend is missing', async () => {
+    const error = new Error('Missing function');
+    Object.assign(error, { code: 'functions/not-found' });
+    const callable = vi.fn().mockRejectedValue(error);
+    functionsMock.httpsCallable.mockReturnValue(callable);
+
+    const { createHabit } = await import('../services/habitService');
+    const result = await createHabit({
+      name: 'Read',
+      frequency: { type: 'SPECIFIC_DAYS', days: ['MON'] },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Habit write backend is not deployed. Deploy the latest Firebase functions.',
+      errorCode: 'functions/not-found',
+    });
+  });
+
   it('maps callable failures for updateHabit and archiveHabit', async () => {
-    const callable = vi.fn().mockRejectedValue(new Error('functions/unavailable'));
+    const error = new Error('functions/unavailable');
+    Object.assign(error, { code: 'functions/unavailable' });
+    const callable = vi.fn().mockRejectedValue(error);
     functionsMock.httpsCallable.mockReturnValue(callable);
 
     const { updateHabit, archiveHabit } = await import('../services/habitService');
@@ -179,12 +225,14 @@ describe('habitService', () => {
       }),
     ).resolves.toEqual({
       ok: false,
-      error: 'functions/unavailable',
+      error: 'Unable to connect. Check your connection and try again.',
+      errorCode: 'functions/unavailable',
     });
 
     await expect(archiveHabit('habit-1')).resolves.toEqual({
       ok: false,
-      error: 'functions/unavailable',
+      error: 'Unable to connect. Check your connection and try again.',
+      errorCode: 'functions/unavailable',
     });
   });
 });

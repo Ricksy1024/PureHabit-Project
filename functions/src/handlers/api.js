@@ -81,7 +81,11 @@ async function getOwnedHabitIds(dbClient, uid, habitIds) {
 async function setupTOTPHandler(request, deps = {}) {
   const dbClient = deps.db || db;
   const authClient = deps.auth || auth;
-  const { uid, email } = requireCallableAuth(request, { requireTotp: false });
+  const { uid, email } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: authClient }
+  );
 
   const userRecord = await authClient.getUser(uid);
   const resolvedEmail = email || userRecord.email;
@@ -112,7 +116,11 @@ async function setupTOTPHandler(request, deps = {}) {
 async function verifyTOTPHandler(request, deps = {}) {
   const dbClient = deps.db || db;
   const authClient = deps.auth || auth;
-  const { uid } = requireCallableAuth(request, { requireTotp: false });
+  const { uid } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: authClient }
+  );
   const token = request && request.data && request.data.token;
 
   if (!VALIDATORS.isValidTOTPToken(token)) {
@@ -171,7 +179,7 @@ async function verifyTOTPHandler(request, deps = {}) {
 async function deleteAccountActionHandler(request, deps = {}) {
   const dbClient = deps.db || db;
   const authClient = deps.auth || auth;
-  const { uid } = requireCallableAuth(request);
+  const { uid } = await requireCallableAuth(request, {}, { auth: authClient });
 
   await deleteUserDataCascade(uid, {
     db: dbClient,
@@ -186,7 +194,12 @@ async function deleteAccountActionHandler(request, deps = {}) {
 
 async function syncHabitLogsHandler(request, deps = {}) {
   const dbClient = deps.db || db;
-  const { uid, token } = requireCallableAuth(request);
+  const authClient = deps.auth || auth;
+  const { uid, token } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: authClient }
+  );
   const logs = request && request.data && request.data.logs;
 
   if (!Array.isArray(logs)) {
@@ -256,7 +269,11 @@ async function syncHabitLogsHandler(request, deps = {}) {
 // [SECURITY-GAP]
 async function createHabitActionHandler(request, deps = {}) {
   const dbClient = deps.db || db;
-  const { uid } = requireCallableAuth(request);
+  const { uid } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: deps.auth || auth }
+  );
   const data = request.data || {};
 
   if (!data.name || typeof data.name !== 'string' || data.name.trim().length === 0) {
@@ -294,7 +311,11 @@ async function createHabitActionHandler(request, deps = {}) {
 // [SECURITY-GAP]
 async function updateHabitActionHandler(request, deps = {}) {
   const dbClient = deps.db || db;
-  const { uid } = requireCallableAuth(request);
+  const { uid } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: deps.auth || auth }
+  );
   const { habitId, ...updates } = request.data || {};
 
   if (!habitId) {
@@ -331,7 +352,11 @@ async function updateHabitActionHandler(request, deps = {}) {
 // [SECURITY-GAP]
 async function archiveHabitActionHandler(request, deps = {}) {
   const dbClient = deps.db || db;
-  const { uid } = requireCallableAuth(request);
+  const { uid } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: deps.auth || auth }
+  );
   const { habitId } = request.data || {};
 
   if (!habitId) {
@@ -360,7 +385,11 @@ async function archiveHabitActionHandler(request, deps = {}) {
 // [SECURITY-GAP]
 async function registerDeviceTokenActionHandler(request, deps = {}) {
   const dbClient = deps.db || db;
-  const { uid } = requireCallableAuth(request);
+  const { uid } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: deps.auth || auth }
+  );
   const { token } = request.data || {};
 
   if (!token || typeof token !== 'string') {
@@ -378,7 +407,12 @@ async function registerDeviceTokenActionHandler(request, deps = {}) {
 // [SECURITY-GAP]
 async function batchRenameCategoryActionHandler(request, deps = {}) {
   const dbClient = deps.db || db;
-  const { uid } = requireCallableAuth(request);
+  const authClient = deps.auth || auth;
+  const { uid } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: authClient }
+  );
   const { oldName, newName } = request.data || {};
 
   if (typeof oldName !== 'string' || typeof newName !== 'string') {
@@ -409,7 +443,11 @@ async function batchRenameCategoryActionHandler(request, deps = {}) {
 async function updateUserProfileActionHandler(request, deps = {}) {
   const dbClient = deps.db || db;
   const authClient = deps.auth || auth;
-  const { uid } = requireCallableAuth(request);
+  const { uid } = await requireCallableAuth(
+    request,
+    { requireTotp: false },
+    { auth: authClient }
+  );
   const { displayName, timezone } = request.data || {};
 
   const updates = { updatedAt: serverTimestamp() };

@@ -128,16 +128,15 @@ describe('App auth guard verification tasks', () => {
     expect(screen.getByText('Auth Modal Open')).toBeInTheDocument();
   });
 
-  it('Verification coming-soon mode: pending sessions are not blocked from authenticated UI', async () => {
+  it('Pending verification sessions stay blocked from authenticated UI', async () => {
     authStateRef.value = authenticatedPendingState();
 
     const { default: App } = await import('../App');
     render(<App />);
 
-    expect(screen.getByText('Good Morning, Alex')).toBeInTheDocument();
-    expect(screen.queryByText('Finish Security Setup')).not.toBeInTheDocument();
-    expect(screen.queryByText('Sign In Required')).not.toBeInTheDocument();
-    expect(authApiRef.refreshAuthState).not.toHaveBeenCalled();
+    expect(screen.getByText('Verify Your Email')).toBeInTheDocument();
+    expect(screen.queryByText('Good Morning, Alex')).not.toBeInTheDocument();
+    expect(screen.getByText('Auth Modal Open')).toBeInTheDocument();
   });
 
   it('SC-004: 100 authenticated reload continuity trials keep session recognized >=99%', async () => {
