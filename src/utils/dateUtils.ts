@@ -78,3 +78,12 @@ export function logicalDay(timezone: string = 'UTC', dateInput: Date = new Date(
 
   return formatUtcDate(utcMidnightMs);
 }
+
+export function calendarDateToLogicalDay(
+  timezone: string = 'UTC',
+  dateInput: Date = new Date(),
+): string {
+  const stableDate = new Date(dateInput);
+  stableDate.setHours(12, 0, 0, 0);
+  return logicalDay(timezone, stableDate);
+}

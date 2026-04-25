@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { subscribeToHabitLogs, syncHabitLog } from '../services/habitService';
 import type { HabitLog } from '../types/habit';
-import { logicalDay } from '../utils/dateUtils';
+import { calendarDateToLogicalDay } from '../utils/dateUtils';
 import { buildCompletionMap } from '../utils/habitUtils';
 import { useAuth } from './useAuth';
 
@@ -19,7 +19,7 @@ export function useHabitLogs(userId: string | undefined, selectedDate: Date) {
       ? authState.profile?.timezone ||
         Intl.DateTimeFormat().resolvedOptions().timeZone
       : Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const dateString = logicalDay(timezone, selectedDate);
+  const dateString = calendarDateToLogicalDay(timezone, selectedDate);
 
   useEffect(() => {
     if (!userId) {

@@ -11,7 +11,6 @@ const {
 } = require('../core/auth');
 const { deleteUserDataCascade } = require('../core/deletion');
 const { computeMerge } = require('../core/sync');
-const { getLogicalDay, normalizeTimezone } = require('../core/date');
 const { COLLECTIONS, VALIDATORS } = require('../core/models');
 
 function serverTimestamp() {
@@ -27,15 +26,6 @@ function getSecretCryptoOptions(deps = {}) {
     kmsKeyName: deps.kmsKeyName,
     localKey: deps.localEncryptionKey,
   };
-}
-
-async function getUserProfile(dbClient, uid) {
-  const snapshot = await dbClient.collection(COLLECTIONS.USERS).doc(uid).get();
-  if (!snapshot.exists) {
-    return {};
-  }
-
-  return snapshot.data() || {};
 }
 
 function validateSyncLogEntry(entry) {
@@ -195,7 +185,7 @@ async function deleteAccountActionHandler(request, deps = {}) {
 async function syncHabitLogsHandler(request, deps = {}) {
   const dbClient = deps.db || db;
   const authClient = deps.auth || auth;
-  const { uid, token } = await requireCallableAuth(
+  const { uid } = await requireCallableAuth(
     request,
     { requireTotp: false },
     { auth: authClient }
@@ -206,8 +196,6 @@ async function syncHabitLogsHandler(request, deps = {}) {
     throwHttpsError('invalid-argument', 'logs must be an array.');
   }
 
-  const userProfile = await getUserProfile(dbClient, uid);
-  const timezone = normalizeTimezone(userProfile.timezone, normalizeTimezone(token.timezone, 'UTC'));
   const habitIds = new Set();
 
   logs.forEach((entry) => {
@@ -223,20 +211,9 @@ async function syncHabitLogsHandler(request, deps = {}) {
       throwHttpsError('permission-denied', `Habit ${entry.habitId} is not owned by the authenticated user.`);
     }
 
-    const sourceIso =
-      typeof entry.timestamp === 'string'
-        ? entry.timestamp
-        : `${entry.dateString}T12:00:00.000Z`;
-    let logicalDay;
-    try {
-      logicalDay = getLogicalDay(sourceIso, timezone);
-    } catch (_error) {
-      throwHttpsError('invalid-argument', 'Unable to determine logical day from provided log date/time.');
-    }
-
-    if (!VALIDATORS.isValidDateString(logicalDay)) {
-      throwHttpsError('invalid-argument', 'Unable to determine logical day from provided log date/time.');
-    }
+    // The client already computes the selected logical day.
+    // Persist that exact day so switching dates reloads the same record.
+    const logicalDay = entry.dateString;
 
     const documentId = `${uid}_${entry.habitId}_${logicalDay}`;
     const reference = dbClient.collection(COLLECTIONS.HABIT_LOGS).doc(documentId);

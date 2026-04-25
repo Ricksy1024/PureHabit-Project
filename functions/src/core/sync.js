@@ -25,8 +25,47 @@ function pickLatestTimestamp(a, b) {
   return normalizedA >= normalizedB ? normalizedA : normalizedB;
 }
 
+function hasBoolean(value) {
+  return typeof value === 'boolean';
+}
+
+function pickCompletedValue(localData = {}, remoteData = {}) {
+  const hasLocalCompleted = hasBoolean(localData.completed);
+  const hasRemoteCompleted = hasBoolean(remoteData.completed);
+  const localTimestamp = normalizeTimestamp(localData.timestamp);
+  const remoteTimestamp = normalizeTimestamp(remoteData.timestamp);
+
+  if (hasLocalCompleted && hasRemoteCompleted) {
+    if (localTimestamp && remoteTimestamp) {
+      return localTimestamp >= remoteTimestamp
+        ? localData.completed
+        : remoteData.completed;
+    }
+
+    if (localTimestamp) {
+      return localData.completed;
+    }
+
+    if (remoteTimestamp) {
+      return remoteData.completed;
+    }
+
+    return localData.completed;
+  }
+
+  if (hasLocalCompleted) {
+    return localData.completed;
+  }
+
+  if (hasRemoteCompleted) {
+    return remoteData.completed;
+  }
+
+  return false;
+}
+
 function computeMerge(localData = {}, remoteData = {}) {
-  const mergedCompleted = Boolean(localData.completed || remoteData.completed);
+  const mergedCompleted = pickCompletedValue(localData, remoteData);
   const timestamp = pickLatestTimestamp(localData.timestamp, remoteData.timestamp);
 
   return {

@@ -75,9 +75,10 @@ import {
   calculateCompletionPercentage,
   DAY_CODE_TO_NAME,
   DAY_NAME_TO_CODE,
-  getHabitsForDate,
-  getPastSevenDates,
+  getHabitsForDateString,
+  getPastSevenLogicalDates,
 } from './utils/habitUtils';
+import { calendarDateToLogicalDay } from './utils/dateUtils';
 
 const ICON_MAP = {
   Activity,
@@ -454,6 +455,11 @@ function ActivityChart({
   dates: string[];
   values: number[];
 }) {
+  const weekdayFormatter = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    timeZone: 'UTC',
+  });
+
   return (
     <div
       className={`backdrop-blur-md rounded-3xl p-6 soft-shadow ${
@@ -471,7 +477,7 @@ function ActivityChart({
         {values.map((value, index) => (
           <div key={dates[index]} className="flex flex-col-reverse items-center gap-1 flex-1 h-full">
             <span className={isDarkMode ? 'text-[10px] font-bold text-[#A58876]' : 'text-[10px] font-bold text-[#2A2421]'}>
-              {format(new Date(`${dates[index]}T12:00:00Z`), 'EEE')}
+              {weekdayFormatter.format(new Date(`${dates[index]}T00:00:00.000Z`))}
             </span>
             <motion.div
               initial={{ height: 0 }}
@@ -784,6 +790,12 @@ export default function AppShell() {
       ? authState.user.uid
       : undefined;
   const { habits, loading: habitsLoading, error: habitsError } = useHabits(userId);
+  const timezone =
+    authState.status === 'authenticated_ready' ||
+    authState.status === 'authenticated_pending'
+      ? authState.profile?.timezone ||
+        Intl.DateTimeFormat().resolvedOptions().timeZone
+      : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const {
     completionMap,
     toggleCompletion,
@@ -800,7 +812,12 @@ export default function AppShell() {
   );
 
   const chartStartDate = subDays(selectedDate, 6);
-  const { stats: chartStats } = useStatistics(userId, chartStartDate, selectedDate);
+  const { stats: chartStats } = useStatistics(
+    userId,
+    chartStartDate,
+    selectedDate,
+    timezone,
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -825,20 +842,21 @@ export default function AppShell() {
     authState.status === 'authenticated_ready' &&
     authState.profileStatus === 'loading';
 
-  const currentHabits = getHabitsForDate(habits, selectedDate);
+  const selectedDateString = calendarDateToLogicalDay(timezone, selectedDate);
+  const currentHabits = getHabitsForDateString(habits, selectedDateString);
   const progress = calculateCompletionPercentage(currentHabits, completionMap);
 
   const dayProgress = (date: Date) => {
-    const habitsForDate = getHabitsForDate(habits, date);
-    const dateString = format(date, 'yyyy-MM-dd');
+    const dateString = calendarDateToLogicalDay(timezone, date);
+    const habitsForDate = getHabitsForDateString(habits, dateString);
     const dateCompletionMap = chartStats.logsByDate[dateString] || {};
     return calculateCompletionPercentage(habitsForDate, dateCompletionMap);
   };
 
-  const activityDates = getPastSevenDates(selectedDate);
+  const activityDates = getPastSevenLogicalDates(selectedDate, timezone);
   const activityValues = activityDates.map((dateString) =>
     calculateCompletionPercentage(
-      getHabitsForDate(habits, new Date(`${dateString}T12:00:00Z`)),
+      getHabitsForDateString(habits, dateString),
       chartStats.logsByDate[dateString] || {},
     ),
   );
@@ -1057,6 +1075,7 @@ export default function AppShell() {
             isDarkMode={isDarkMode}
             userId={userId}
             userDisplayName={userDisplayName}
+            timezone={timezone}
           />
         ) : activeTab === 'Habits' ? (
           <HabitsPage

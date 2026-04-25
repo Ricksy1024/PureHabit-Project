@@ -316,12 +316,14 @@ export function subscribeToHabits(
   userId: string,
   onData: (habits: Habit[]) => void,
   onError: (error: Error) => void,
+  options: { includeArchived?: boolean } = {},
 ) {
-  const habitsQuery = query(
-    collection(db, COLLECTIONS.HABITS),
-    where('userId', '==', userId),
-    where('archived', '==', false),
-  );
+  const constraints = [where('userId', '==', userId)];
+  if (!options.includeArchived) {
+    constraints.push(where('archived', '==', false));
+  }
+
+  const habitsQuery = query(collection(db, COLLECTIONS.HABITS), ...constraints);
 
   return onSnapshot(
     habitsQuery,

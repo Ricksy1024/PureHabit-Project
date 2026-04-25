@@ -1,25 +1,25 @@
 const { computeMerge } = require('../../src/core/sync');
 
 describe('computeMerge (US3)', () => {
-  test('applies logical OR and keeps completed true when either side is true', () => {
+  test('uses the newer timestamp to decide the merged completed state', () => {
     const merged = computeMerge(
       {
         habitId: 'habit-1',
         userId: 'user-1',
         dateString: '2026-04-08',
         completed: false,
-        timestamp: '2026-04-08T09:00:00.000Z',
+        timestamp: '2026-04-08T10:00:00.000Z',
       },
       {
         habitId: 'habit-1',
         userId: 'user-1',
         dateString: '2026-04-08',
         completed: true,
-        timestamp: '2026-04-08T08:00:00.000Z',
+        timestamp: '2026-04-08T09:00:00.000Z',
       }
     );
 
-    expect(merged.completed).toBe(true);
+    expect(merged.completed).toBe(false);
   });
 
   test('returns false when both local and remote are false', () => {
@@ -39,6 +39,28 @@ describe('computeMerge (US3)', () => {
     );
 
     expect(merged.completed).toBe(false);
+  });
+
+  test('allows a later false update to undo an earlier true completion', () => {
+    const merged = computeMerge(
+      {
+        habitId: 'habit-1',
+        userId: 'user-1',
+        dateString: '2026-04-08',
+        completed: false,
+        timestamp: '2026-04-08T11:00:00.000Z',
+      },
+      {
+        habitId: 'habit-1',
+        userId: 'user-1',
+        dateString: '2026-04-08',
+        completed: true,
+        timestamp: '2026-04-08T09:00:00.000Z',
+      }
+    );
+
+    expect(merged.completed).toBe(false);
+    expect(merged.timestamp).toBe('2026-04-08T11:00:00.000Z');
   });
 
   test('keeps latest valid timestamp and identifiers', () => {
@@ -139,10 +161,10 @@ describe('computeMerge (US3)', () => {
     }
   });
 
-  test('uses remote timestamp when it is newer than local timestamp', () => {
+  test('uses remote timestamp and state when it is newer than local timestamp', () => {
     const merged = computeMerge(
       {
-        completed: true,
+        completed: false,
         timestamp: '2026-04-09T08:00:00.000Z',
       },
       {
@@ -152,6 +174,7 @@ describe('computeMerge (US3)', () => {
     );
 
     expect(merged.timestamp).toBe('2026-04-09T09:00:00.000Z');
+    expect(merged.completed).toBe(true);
   });
 
   test('supports default arguments when merge payloads are omitted', () => {

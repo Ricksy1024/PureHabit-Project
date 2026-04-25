@@ -190,7 +190,7 @@ describe('API handlers', () => {
     });
   });
 
-  test('syncHabitLogsHandler uses user profile timezone and writes with transactional merge', async () => {
+  test('syncHabitLogsHandler persists the selected dateString as the Firestore key', async () => {
     const db = createDbMock({
       users: {
         'user-1': { timezone: 'America/Los_Angeles' },
@@ -225,10 +225,48 @@ describe('API handlers', () => {
 
     expect(result).toEqual({ success: true, processedCount: 1 });
 
-    const saved = db._store.habit_logs.get('user-1_habit-1_2026-04-08');
+    const saved = db._store.habit_logs.get('user-1_habit-1_2026-04-09');
     expect(saved.completed).toBe(true);
-    expect(saved.dateString).toBe('2026-04-08');
+    expect(saved.dateString).toBe('2026-04-09');
     expect(db.runTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  test('syncHabitLogsHandler does not shift a backfilled completion onto the current day', async () => {
+    const db = createDbMock({
+      habits: {
+        'habit-1': { userId: 'user-1' },
+      },
+    });
+
+    const request = {
+      auth: {
+        uid: 'user-1',
+        token: {
+          email_verified: true,
+        },
+      },
+      data: {
+        logs: [
+          {
+            habitId: 'habit-1',
+            dateString: '2026-04-12',
+            completed: true,
+            timestamp: '2026-04-25T18:00:00.000Z',
+          },
+        ],
+      },
+    };
+
+    const result = await syncHabitLogsHandler(request, { db });
+
+    expect(result).toEqual({ success: true, processedCount: 1 });
+    expect(db._store.habit_logs.get('user-1_habit-1_2026-04-12')).toEqual(
+      expect.objectContaining({
+        dateString: '2026-04-12',
+        completed: true,
+        timestamp: '2026-04-25T18:00:00.000Z',
+      })
+    );
   });
 
   test('syncHabitLogsHandler rejects habit IDs not owned by caller', async () => {
@@ -266,7 +304,7 @@ describe('API handlers', () => {
     });
   });
 
-  test('syncHabitLogsHandler preserves completed=true under concurrent conflicting writes', async () => {
+  test('syncHabitLogsHandler keeps the newest completion state under conflicting writes', async () => {
     const db = createDbMock({
       users: {
         'user-1': { timezone: 'UTC' },
@@ -318,7 +356,8 @@ describe('API handlers', () => {
     ]);
 
     const saved = db._store.habit_logs.get('user-1_habit-1_2026-04-09');
-    expect(saved.completed).toBe(true);
+    expect(saved.completed).toBe(false);
+    expect(saved.timestamp).toBe('2026-04-09T10:00:00.000Z');
     expect(db.runTransaction).toHaveBeenCalledTimes(2);
   });
 

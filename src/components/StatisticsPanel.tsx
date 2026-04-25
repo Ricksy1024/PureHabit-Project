@@ -14,6 +14,7 @@ interface StatisticsPanelProps {
   isDarkMode: boolean;
   userId: string | undefined;
   userDisplayName: string;
+  timezone: string;
 }
 
 function getRangeWindow(range: string) {
@@ -42,6 +43,7 @@ export function StatisticsPanel({
   isDarkMode,
   userId,
   userDisplayName,
+  timezone,
 }: StatisticsPanelProps) {
   const [range, setRange] = useState('Weekly');
   const { startDate, endDate, label } = getRangeWindow(range);
@@ -49,6 +51,7 @@ export function StatisticsPanel({
     userId,
     startDate,
     endDate,
+    timezone,
   );
 
   return (

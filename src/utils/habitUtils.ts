@@ -1,5 +1,6 @@
 import { addDays, eachDayOfInterval, format, subDays } from 'date-fns';
 import type { Habit, HabitLog } from '../types/habit';
+import { calendarDateToLogicalDay } from './dateUtils';
 
 export const DAY_NAME_TO_CODE: Record<string, Habit['frequency']['days'][number]> = {
   Monday: 'MON',
@@ -25,8 +26,34 @@ export function getDayCode(date: Date): Habit['frequency']['days'][number] {
   return DAY_NAME_TO_CODE[format(date, 'EEEE')];
 }
 
+export function getDayCodeFromDateString(
+  dateString: string,
+): Habit['frequency']['days'][number] {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  const weekday = date.getUTCDay();
+  const dayCodes: Habit['frequency']['days'][number][] = [
+    'SUN',
+    'MON',
+    'TUE',
+    'WED',
+    'THU',
+    'FRI',
+    'SAT',
+  ];
+
+  return dayCodes[weekday];
+}
+
 export function getHabitsForDate(habits: Habit[], date: Date) {
   const dayCode = getDayCode(date);
+  return habits.filter((habit) => {
+    const days = habit.frequency?.days || [];
+    return days.length === 0 || days.includes(dayCode);
+  });
+}
+
+export function getHabitsForDateString(habits: Habit[], dateString: string) {
+  const dayCode = getDayCodeFromDateString(dateString);
   return habits.filter((habit) => {
     const days = habit.frequency?.days || [];
     return days.length === 0 || days.includes(dayCode);
@@ -64,7 +91,9 @@ export function groupHabitsByCategory(habits: Habit[]) {
   }, {});
 }
 
-export function buildLogsByDate(logs: HabitLog[]) {
+export function buildLogsByDate(
+  logs: Array<Pick<HabitLog, 'habitId' | 'dateString' | 'completed'>>,
+) {
   return logs.reduce<Record<string, Record<string, boolean>>>((map, log) => {
     if (!map[log.dateString]) {
       map[log.dateString] = {};
@@ -81,8 +110,30 @@ export function getPastSevenDates(anchorDate: Date) {
   );
 }
 
-export function countScheduledDays(habit: Habit, startDate: Date, endDate: Date) {
+export function shiftDateString(dateString: string, daysDelta: number) {
+  const baseDate = new Date(`${dateString}T00:00:00.000Z`);
+  baseDate.setUTCDate(baseDate.getUTCDate() + daysDelta);
+  return baseDate.toISOString().slice(0, 10);
+}
+
+export function getPastSevenLogicalDates(
+  anchorDate: Date,
+  timezone: string = 'UTC',
+) {
+  const anchorDateString = calendarDateToLogicalDay(timezone, anchorDate);
+
+  return Array.from({ length: 7 }, (_, index) =>
+    shiftDateString(anchorDateString, index - 6),
+  );
+}
+
+export function countScheduledDays(
+  habit: Habit,
+  startDate: Date,
+  endDate: Date,
+  _timezone: string = 'UTC',
+) {
   return eachDayOfInterval({ start: startDate, end: endDate }).filter((date) =>
-    getHabitsForDate([habit], date).length > 0,
+    getHabitsForDateString([habit], date.toISOString().slice(0, 10)).length > 0,
   ).length;
 }
