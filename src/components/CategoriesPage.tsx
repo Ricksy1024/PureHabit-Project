@@ -63,14 +63,20 @@ const CategoryItem = ({ category, habits, isDarkMode, expanded, onToggle, onEdit
         >
           <Edit2 className="w-4 h-4" />
         </motion.button>
-        <motion.div
+        <motion.button
+          type="button"
+          aria-label={expanded ? `Collapse ${category}` : `Expand ${category}`}
+          onClick={onToggle}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.95 }}
           animate={{ rotate: expanded ? 180 : 0 }}
           transition={{ duration: 0.3 }}
+          className={`p-2 rounded-lg transition-colors shrink-0 ${
+            isDarkMode ? 'text-[#A58876] hover:bg-[#4A2C24]/40' : 'text-[#8A7E7A] hover:bg-[#E8DCD1]/50'
+          }`}
         >
-          <ChevronDown className={`w-5 h-5 transition-colors ${
-            isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
-          }`} />
-        </motion.div>
+          <ChevronDown className="w-5 h-5" />
+        </motion.button>
       </div>
     </div>
 

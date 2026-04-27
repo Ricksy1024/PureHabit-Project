@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Calendar, Flame, Target, Activity, Briefcase, Users, 
-  Brain, Code, Home, ChevronRight, Lightbulb, Bell,
+  Brain, Code, Home, ChevronRight, Lightbulb,
   Dumbbell, Users2, Laptop
 } from 'lucide-react';
 
@@ -150,24 +150,6 @@ export const StatisticsPage = ({ isDarkMode }: { isDarkMode: boolean }) => {
               ))}
             </div>
             
-            {/* Profile Section */}
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Alex Morgan</p>
-                <p className={`text-[10px] font-bold uppercase tracking-widest transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>Free Plan</p>
-              </div>
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#D0705B]">
-                <img 
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" 
-                  alt="Profile" 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <button className={`p-2 rounded-xl backdrop-blur-md soft-shadow transition-colors duration-500 ${isDarkMode ? 'bg-[#2A2421]/60 text-[#A58876] hover:text-[#FDF8F3]' : 'bg-[#FAF5F0]/60 text-[#8A7E7A] hover:text-[#2A2421]'}`}>
-                <Bell className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         </header>
 
@@ -276,9 +258,6 @@ export const StatisticsPage = ({ isDarkMode }: { isDarkMode: boolean }) => {
         <section>
           <div className="flex items-center justify-between mb-6">
             <h3 className={`text-xl font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Habit Area Breakdown</h3>
-            <button className="text-[#D0705B] text-sm font-semibold flex items-center gap-1 hover:underline">
-              Details <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
             {stats.habits.map((item, i) => (

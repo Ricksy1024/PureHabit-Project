@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, Lock, User, Palette, LogOut, LogIn, Save, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { X, Bell, Lock, User, Palette, LogOut, LogIn, Save, ChevronRight, Eye, EyeOff, ChevronDown } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -48,6 +48,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isTwoFactorModalOpen, setIsTwoFactorModalOpen] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [isActiveSessionsModalOpen, setIsActiveSessionsModalOpen] = useState(false);
+  const [isTabMenuOpen, setIsTabMenuOpen] = useState(false);
 
   // Sample active sessions data
   const [activeSessions] = useState([
@@ -133,6 +134,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     { id: 'security', label: 'Security', icon: <Lock className="w-5 h-5" /> },
   ];
 
+  useEffect(() => {
+    if (!isOpen) {
+      setIsTabMenuOpen(false);
+    }
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -171,27 +178,82 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             {/* Tabs */}
-            <div className={`flex gap-1 px-4 py-4 border-b transition-colors ${
+            <div className={`px-4 py-4 border-b transition-colors ${
               isDarkMode ? 'bg-[#2A2421]/50 border-[#4A2C24]/30' : 'bg-[#FAF5F0]/50 border-[#E8DCD1]/30'
             }`}>
-              <div className="flex gap-2 overflow-x-auto">
-                {tabs.map((tab) => (
-                  <motion.button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    whileTap={{ scale: 0.95 }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-colors text-sm font-medium ${
-                      activeTab === tab.id
-                        ? 'bg-[#D0705B] text-white shadow-md'
-                        : isDarkMode
-                        ? 'text-[#A58876] hover:bg-[#4A2C24]'
-                        : 'text-[#8A7E7A] hover:bg-[#E8DCD1]'
-                    }`}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </motion.button>
-                ))}
+              <label className={`block text-xs font-bold uppercase mb-2 transition-colors ${
+                isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+              }`}>
+                Settings Section
+              </label>
+              <div className="relative">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => setIsTabMenuOpen((previous) => !previous)}
+                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors focus:outline-none ${
+                    isDarkMode
+                      ? 'bg-[#4A2C24]/50 border-[#4A2C24] text-[#FDF8F3] hover:bg-[#4A2C24]/70'
+                      : 'bg-[#FFF9F4] border-[#E8DCD1] text-[#2A2421] hover:bg-[#FAF5F0]'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                      isDarkMode ? 'bg-[#D0705B]/20 text-[#FDF8F3]' : 'bg-[#D0705B]/10 text-[#2A2421]'
+                    }`}>
+                      {tabs.find((tab) => tab.id === activeTab)?.icon}
+                    </span>
+                    <span>{tabs.find((tab) => tab.id === activeTab)?.label}</span>
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isTabMenuOpen ? 'rotate-180' : 'rotate-0'} ${
+                    isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'
+                  }`} />
+                </motion.button>
+
+                <AnimatePresence>
+                  {isTabMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      transition={{ duration: 0.18 }}
+                      className={`absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-2xl border shadow-xl backdrop-blur-md ${
+                        isDarkMode ? 'border-[#4A2C24] bg-[#2A2421]/95' : 'border-[#E8DCD1] bg-[#FFF9F4]/95'
+                      }`}
+                    >
+                      <div className="p-2">
+                        {tabs.map((tab) => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => {
+                              setActiveTab(tab.id);
+                              setIsTabMenuOpen(false);
+                            }}
+                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-colors ${
+                              activeTab === tab.id
+                                ? 'bg-[#D0705B] text-white shadow-sm'
+                                : isDarkMode
+                                ? 'text-[#FDF8F3] hover:bg-[#4A2C24]/70'
+                                : 'text-[#2A2421] hover:bg-[#E8DCD1]/70'
+                            }`}
+                          >
+                            <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                              activeTab === tab.id
+                                ? 'bg-white/15'
+                                : isDarkMode
+                                ? 'bg-[#4A2C24]/60 text-[#FDF8F3]'
+                                : 'bg-[#F3E6DB] text-[#2A2421]'
+                            }`}>
+                              {tab.icon}
+                            </span>
+                            <span>{tab.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
