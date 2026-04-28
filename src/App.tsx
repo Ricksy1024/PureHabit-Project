@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { format, addDays, startOfWeek, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subWeeks, addWeeks } from 'date-fns';
 import confetti from 'canvas-confetti';
@@ -17,6 +17,8 @@ import { HabitsPage } from './components/HabitsPage';
 import { CategoriesPage } from './components/CategoriesPage';
 import { StreakPage } from './components/StreakPage';
 import { SettingsModal } from './components/SettingsModal';
+import { LandingPage } from './components/LandingPage';
+import { AuthModal } from './components/AuthModal';
 
 const ICON_MAP = {
   'Activity': Activity,
@@ -33,7 +35,7 @@ const ICON_MAP = {
   'Target': Target,
 };
 
-const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onSettingsClick }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onSettingsClick: () => void }) => (
+const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onSettingsClick, userName, onLogout }: { isDarkMode: boolean, setIsDarkMode: (v: boolean) => void, activeTab: string, setActiveTab: (t: string) => void, onSettingsClick: () => void, userName: string, onLogout: () => void }) => (
   <aside className={`w-64 h-screen flex flex-col px-6 py-8 backdrop-blur-sm border-r transition-colors duration-500 ${isDarkMode ? 'bg-black/20 border-[#4A2C24]/30' : 'bg-white/10 border-[#EADCCF]/20'}`}>
     <div className={`flex items-center gap-2 mb-12 px-2 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
       <Sparkles className="w-6 h-6" />
@@ -60,13 +62,22 @@ const Sidebar = ({ isDarkMode, setIsDarkMode, activeTab, setActiveTab, onSetting
         className={`w-full flex items-center gap-3 p-2 -mx-2 rounded-2xl transition-all duration-500 ${isDarkMode ? 'bg-[#2A2421]/80 border border-[#4A2C24]/50 shadow-lg hover:bg-[#2A2421]' : 'border border-transparent hover:bg-[#E8DCD1]/30'}`}
       >
         <div className="w-10 h-10 rounded-xl bg-[#D0705B]/20 flex items-center justify-center overflow-hidden">
-          <img src="https://picsum.photos/seed/alex/100/100" alt="Alex Morgan" className="w-full h-full object-cover opacity-90" referrerPolicy="no-referrer" />
+          <img src="https://picsum.photos/seed/alex/100/100" alt={userName} className="w-full h-full object-cover opacity-90" referrerPolicy="no-referrer" />
         </div>
         <div className="flex-1 text-left">
-          <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>Alex Morgan</p>
+          <p className={`text-sm font-bold transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>{userName}</p>
           <p className={`text-[11px] transition-colors duration-500 ${isDarkMode ? 'text-[#A58876]' : 'text-[#8A7E7A]'}`}>Pro Member</p>
         </div>
         <Settings className={`w-4 h-4 cursor-pointer hover:rotate-90 transition-all duration-300 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`} />
+      </motion.button>
+
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={onLogout}
+        className={`w-full px-4 py-2 rounded-2xl font-medium text-sm transition-all duration-300 ${isDarkMode ? 'bg-[#D0705B]/20 text-[#D0705B] hover:bg-[#D0705B]/30' : 'bg-[#D0705B]/10 text-[#D0705B] hover:bg-[#D0705B]/20'}`}
+      >
+        Sign Out
       </motion.button>
     </div>
   </aside>
@@ -641,11 +652,73 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [userName, setUserName] = useState('');
 
+  // Load authentication state from localStorage on mount
+  useEffect(() => {
+    const savedAuth = localStorage.getItem('purehabit_auth');
+    const savedUserName = localStorage.getItem('purehabit_username');
+    if (savedAuth === 'true' && savedUserName) {
+      setIsAuthenticated(true);
+      setUserName(savedUserName);
+    }
+  }, []);
+
+  const handleLogin = (email: string, password: string, username?: string) => {
+    // Simple validation - in a real app, this would call a backend API
+    if (email && password) {
+      const userNameToSave = username || email.split('@')[0];
+      setUserName(userNameToSave);
+      setIsAuthenticated(true);
+      setIsAuthModalOpen(false);
+      
+      // Save to localStorage
+      localStorage.setItem('purehabit_auth', 'true');
+      localStorage.setItem('purehabit_username', userNameToSave);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUserName('');
+    localStorage.removeItem('purehabit_auth');
+    localStorage.removeItem('purehabit_username');
+  };
+
+  // Show landing page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LandingPage 
+          onGetStarted={() => setIsAuthModalOpen(true)}
+          onLoginClick={() => setIsAuthModalOpen(true)}
+          isDarkMode={isDarkMode}
+        />
+        <AuthModal 
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onLogin={handleLogin}
+          isDarkMode={isDarkMode}
+        />
+      </>
+    );
+  }
+
+  // Show main app if authenticated
   return (
     <ShaderBackground isDarkMode={isDarkMode}>
       <div className={`flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'text-[#FDF8F3]' : 'text-[#2A2421]'}`}>
-        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} activeTab={activeTab} setActiveTab={setActiveTab} onSettingsClick={() => setIsSettingsOpen(true)} />
+        <Sidebar 
+          isDarkMode={isDarkMode} 
+          setIsDarkMode={setIsDarkMode} 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          onSettingsClick={() => setIsSettingsOpen(true)}
+          userName={userName}
+          onLogout={handleLogout}
+        />
         {activeTab === 'Dashboard' ? (
           <MainContent isDarkMode={isDarkMode} pageType="dashboard" />
         ) : activeTab === 'Statistics' ? (
