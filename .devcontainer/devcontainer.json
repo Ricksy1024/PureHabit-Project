@@ -27,8 +27,8 @@
       "extensions": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "bradlc.vscode-tailwindcss",
-        "rfsales.speckit-assistant"
+        "bradlc.vscode-tailwindcss"
+      
       ]
     }
   }
